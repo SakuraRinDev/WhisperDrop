@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(rustc --version)",
+      "Bash(where rustc:*)",
+      "Bash(where.exe rustc:*)",
+      "Bash(where.exe cargo:*)",
+      "Bash(echo $PATH)",
+      "Bash(curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs)",
+      "Bash(sh -s -- -y)",
+      "Bash(python -m venv sidecar/.venv)",
+      "Bash(source sidecar/.venv/Scripts/activate)",
+      "Bash(pip install:*)",
+      "Bash(curl --proto '=https' --tlsv1.2 -sSf https://win.rustup.rs/x86_64 -o /tmp/rustup-init.exe)",
+      "Bash(/tmp/rustup-init.exe -y --default-toolchain stable)",
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(cargo --version)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(cargo check:*)",
+      "Bash(rustup target:*)",
+      "Bash(rustup default:*)",
+      "Bash(\"F:/work/WhisperDrop/src-tauri/binaries/whisper-sidecar-x86_64-pc-windows-msvc.exe\")",
+      "Bash(cargo build:*)",
+      "WebSearch"
+    ]
+  }
+}

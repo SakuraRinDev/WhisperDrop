@@ -1,0 +1,57 @@
+{
+  "productName": "WhisperDrop",
+  "version": "0.1.0",
+  "identifier": "com.whisperdrop.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "WhisperDrop",
+        "width": 640,
+        "height": 480,
+        "visible": false,
+        "decorations": true,
+        "center": true
+      },
+      {
+        "label": "overlay",
+        "title": "",
+        "width": 440,
+        "height": 88,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/whisper-sidecar"]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}
