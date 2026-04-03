@@ -109,6 +109,9 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                                     "postprocessing" => {
                                         let _ = app_handle.emit("postprocessing", ());
                                     }
+                                    "postprocessing_token" => {
+                                        let _ = app_handle.emit("postprocessing-token", &msg);
+                                    }
                                     "done" => {
                                         if let Some(dbg) = &msg.debug {
                                             eprintln!("[debug] {}", dbg);

@@ -108,8 +108,9 @@ def postprocess_with_ollama(
     base_url: str = "http://localhost:11434",
     instruction: str | None = None,
     language: str | None = None,
+    on_token=None,
 ) -> str:
-    """Post-process transcribed text using local Ollama."""
+    """Post-process transcribed text using local Ollama with streaming."""
     sys_prompt, msg_tpl = get_prompts(language)
 
     user_msg = msg_tpl.format(text=text)
@@ -122,7 +123,7 @@ def postprocess_with_ollama(
             {"role": "system", "content": sys_prompt},
             {"role": "user", "content": user_msg},
         ],
-        "stream": False,
+        "stream": True,
         "keep_alive": "30m",
         "options": {"temperature": 0.1, "num_predict": 256, "num_ctx": 512},
     }).encode("utf-8")
@@ -132,9 +133,26 @@ def postprocess_with_ollama(
         data=payload,
         headers={"Content-Type": "application/json"},
     )
+
+    result_parts = []
     with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data["message"]["content"].strip()
+        for raw_line in resp:
+            line = raw_line.decode("utf-8").strip()
+            if not line:
+                continue
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            token = chunk.get("message", {}).get("content", "")
+            if token:
+                result_parts.append(token)
+                if on_token:
+                    on_token("".join(result_parts))
+            if chunk.get("done"):
+                break
+
+    return "".join(result_parts).strip()
 
 
 def list_ollama_models(base_url: str = "http://localhost:11434") -> list[dict]:
@@ -207,6 +225,7 @@ def postprocess(
     ollama_model: str = "gemma4:e2b",
     ollama_url: str = "http://localhost:11434",
     language: str | None = None,
+    on_token=None,
 ) -> str:
     """Post-process text with the specified LLM provider."""
     if provider == "none":
@@ -220,5 +239,7 @@ def postprocess(
             return text
         return postprocess_with_openai(text, api_key, instruction, language)
     if provider == "ollama":
-        return postprocess_with_ollama(text, ollama_model, ollama_url, instruction, language)
+        return postprocess_with_ollama(
+            text, ollama_model, ollama_url, instruction, language, on_token,
+        )
     return text

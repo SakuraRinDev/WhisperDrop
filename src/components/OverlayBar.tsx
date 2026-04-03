@@ -11,24 +11,35 @@ interface AudioLevelPayload {
 function OverlayBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<RecordingState>("listening");
+  const [streamText, setStreamText] = useState("");
   const audioLevelRef = useRef(0);
   const animFrameRef = useRef(0);
 
   useEffect(() => {
     const unlisten1 = listen<string>("recording-state", (event) => {
       setState(event.payload as RecordingState);
+      if (event.payload === "listening" || event.payload === "idle") {
+        setStreamText("");
+      }
     });
     const unlisten2 = listen<AudioLevelPayload>("audio-level", (event) => {
       audioLevelRef.current = event.payload.level;
     });
     const unlisten3 = listen("postprocessing", () => {
       setState("postprocessing");
+      setStreamText("");
+    });
+    const unlisten4 = listen<{ text?: string }>("postprocessing-token", (event) => {
+      if (event.payload.text) {
+        setStreamText(event.payload.text);
+      }
     });
 
     return () => {
       unlisten1.then((f) => f());
       unlisten2.then((f) => f());
       unlisten3.then((f) => f());
+      unlisten4.then((f) => f());
     };
   }, []);
 
@@ -62,7 +73,6 @@ function OverlayBar() {
       const speed = state === "idle" ? 0.015 : 0.03 + level * 0.02;
       phase += speed;
 
-      // Draw multiple wave layers
       for (let w = 0; w < 3; w++) {
         ctx.beginPath();
         const waveColor = stateColors[w % stateColors.length];
@@ -74,7 +84,6 @@ function OverlayBar() {
         const amp = amplitude * (1 - w * 0.25);
 
         for (let x = 0; x < W; x++) {
-          // Envelope: fade at edges
           const envelope = Math.sin((x / W) * Math.PI);
           const y =
             H / 2 +
@@ -90,7 +99,6 @@ function OverlayBar() {
         ctx.stroke();
       }
 
-      // Center glow
       const gradient = ctx.createRadialGradient(
         W / 2,
         H / 2,
@@ -111,12 +119,7 @@ function OverlayBar() {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [state]);
 
-  const statusText: Record<RecordingState, string> = {
-    idle: "",
-    listening: "Listening...",
-    transcribing: "Transcribing...",
-    postprocessing: "Post-processing...",
-  };
+  const showStream = state === "postprocessing" && streamText;
 
   return (
     <div className="overlay-bar">
@@ -129,13 +132,23 @@ function OverlayBar() {
           position: "relative",
           zIndex: 1,
           color: "rgba(255,255,255,0.7)",
-          fontSize: 13,
+          fontSize: showStream ? 11 : 13,
           fontWeight: 500,
           letterSpacing: "0.03em",
           textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+          maxWidth: 360,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          padding: "0 20px",
         }}
       >
-        {statusText[state]}
+        {showStream ? streamText : (
+          state === "idle" ? "" :
+          state === "listening" ? "Listening..." :
+          state === "transcribing" ? "Transcribing..." :
+          "Post-processing..."
+        )}
       </span>
     </div>
   );

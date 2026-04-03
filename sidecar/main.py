@@ -194,6 +194,10 @@ class WhisperDropSidecar:
             if self.config["llm_provider"] == "claude"
             else self.config["openai_api_key"]
         )
+
+        def on_token(partial_text: str):
+            send({"status": "postprocessing_token", "text": partial_text})
+
         try:
             return postprocess(
                 text,
@@ -202,6 +206,7 @@ class WhisperDropSidecar:
                 ollama_model=self.config.get("ollama_model", "gemma4:e2b"),
                 ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
                 language=self.config.get("language"),
+                on_token=on_token,
             )
         except Exception as e:
             send({"status": "error", "message": f"PostProcess failed: {e}"})
