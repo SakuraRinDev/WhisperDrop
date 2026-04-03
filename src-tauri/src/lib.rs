@@ -156,35 +156,40 @@ pub fn run() {
             let app_handle2 = app.handle().clone();
             let hotkey_state2 = hotkey_state.clone();
             app.listen("transcription-done", move |event| {
-                let payload = event.payload();
-                if let Ok(msg) =
-                    serde_json::from_str::<sidecar::SidecarMessage>(payload)
-                {
-                    if let Some(text) = &msg.text {
-                        if !text.is_empty() {
-                            // Hide overlay
-                            if let Some(overlay) =
-                                app_handle2.get_webview_window("overlay")
-                            {
-                                let _ = overlay.hide();
-                            }
-
-                            // Paste text
-                            let text = text.clone();
-                            std::thread::spawn(move || {
-                                if let Err(e) = paste::paste_text(&text) {
-                                    eprintln!("Paste error: {}", e);
-                                }
-                            });
-                        }
-                    }
-                }
-
-                // Reset state
                 let hk = hotkey_state2.clone();
+                let app_h = app_handle2.clone();
+
                 tauri::async_runtime::spawn(async move {
                     let mut state = hk.lock().await;
+
+                    // Ignore duplicate done events if already idle
+                    if state.recording_state == RecordingState::Idle {
+                        return;
+                    }
                     state.recording_state = RecordingState::Idle;
+                    drop(state);
+
+                    let payload = event.payload();
+                    if let Ok(msg) =
+                        serde_json::from_str::<sidecar::SidecarMessage>(payload)
+                    {
+                        if let Some(text) = &msg.text {
+                            if !text.is_empty() {
+                                if let Some(overlay) =
+                                    app_h.get_webview_window("overlay")
+                                {
+                                    let _ = overlay.hide();
+                                }
+
+                                let text = text.clone();
+                                std::thread::spawn(move || {
+                                    if let Err(e) = paste::paste_text(&text) {
+                                        eprintln!("Paste error: {}", e);
+                                    }
+                                });
+                            }
+                        }
+                    }
                 });
             });
 

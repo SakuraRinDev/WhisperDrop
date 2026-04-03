@@ -32,7 +32,7 @@ class WhisperDropSidecar:
     def __init__(self):
         self.config = {
             "mode": "local",
-            "model": "base",
+            "model": "large-v3-turbo",
             "language": None,
             "llm_postprocess": False,
             "llm_provider": "none",
@@ -117,53 +117,59 @@ class WhisperDropSidecar:
         self._recording_thread.start()
 
     def handle_stop_recording(self):
-        if self.recorder:
-            audio = self.recorder.stop()
+        if not self.recorder or not self.recorder._recording:
+            return
 
-            if len(audio) == 0:
-                send({"status": "done", "text": ""})
-                return
+        audio = self.recorder.stop()
 
-            try:
-                if self.transcriber is None:
-                    self._init_transcriber()
+        if len(audio) == 0:
+            send({"status": "done", "text": ""})
+            return
 
-                send({"status": "transcribing"})
-                text = self.transcriber.transcribe(audio)
+        try:
+            if self.transcriber is None:
+                self._init_transcriber()
 
-                if self.config["llm_postprocess"] and text:
-                    send({"status": "postprocessing"})
-                    api_key = (
-                        self.config["claude_api_key"]
-                        if self.config["llm_provider"] == "claude"
-                        else self.config["openai_api_key"]
-                    )
-                    text = postprocess(
-                        text,
-                        provider=self.config["llm_provider"],
-                        api_key=api_key,
-                    )
+            send({"status": "transcribing"})
+            text = self.transcriber.transcribe(audio)
 
-                send({"status": "done", "text": text})
-            except Exception as e:
-                send({"status": "error", "message": str(e)})
+            if self.config["llm_postprocess"] and text:
+                send({"status": "postprocessing"})
+                api_key = (
+                    self.config["claude_api_key"]
+                    if self.config["llm_provider"] == "claude"
+                    else self.config["openai_api_key"]
+                )
+                text = postprocess(
+                    text,
+                    provider=self.config["llm_provider"],
+                    api_key=api_key,
+                )
+
+            send({"status": "done", "text": text})
+        except Exception as e:
+            send({"status": "error", "message": str(e)})
 
     def handle_set_config(self, config: dict):
-        old_mode = self.config["mode"]
+        old_mode = self.config.get("mode")
         old_model = self.config.get("model")
         old_device = self.config.get("input_device")
         old_vocab = self.config.get("custom_vocabulary")
+
         self.config.update(config)
 
-        if (config.get("mode") != old_mode
-                or config.get("model") != old_model
-                or config.get("custom_vocabulary") != old_vocab):
+        new_mode = self.config.get("mode")
+        new_model = self.config.get("model")
+        new_vocab = self.config.get("custom_vocabulary")
+        new_device = self.config.get("input_device")
+
+        if new_mode != old_mode or new_model != old_model or new_vocab != old_vocab:
             self.transcriber = None
 
-        if config.get("input_device") != old_device:
+        if new_device != old_device:
             self.recorder = None
 
-        send({"status": "config_updated"})
+        send({"status": "config_updated", "model": new_model})
 
     def handle_list_devices(self):
         try:

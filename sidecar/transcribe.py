@@ -9,7 +9,7 @@ from typing import Literal
 import numpy as np
 
 MODEL_SIZES = ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
-DEFAULT_MODEL = "base"
+DEFAULT_MODEL = "large-v3-turbo"
 
 
 def get_models_dir() -> Path:

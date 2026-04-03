@@ -27,7 +27,7 @@ interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   transcriptionMode: "local",
-  whisperModel: "base",
+  whisperModel: "large-v3-turbo",
   language: "auto",
   llmPostprocess: false,
   llmProvider: "none",
