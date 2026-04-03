@@ -1,6 +1,10 @@
-# WhisperDrop
+<p align="center">
+  <img src="public/header-banner.png" alt="WhisperDrop" width="100%" />
+</p>
 
-ローカル完結の音声入力アプリ。Alt キー一発で音声をテキスト化し、アクティブなウィンドウにペーストします。
+<h1 align="center">WhisperDrop</h1>
+
+<p align="center">ローカル完結の音声入力アプリ。ショートカット一発で音声をテキスト化し、アクティブなウィンドウにペーストします。</p>
 
 ## 特徴
 

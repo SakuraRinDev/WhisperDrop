@@ -198,9 +198,14 @@ pub fn run() {
                     {
                         if let Some(text) = &msg.text {
                             if !text.is_empty() {
+                                eprintln!("[paste] text={:?} (len={})", &text[..text.len().min(80)], text.len());
                                 should_paste = true;
                                 paste_text_str = text.clone();
+                            } else {
+                                eprintln!("[paste] empty text, skipping paste");
                             }
+                        } else {
+                            eprintln!("[paste] no text field in done message");
                         }
                     }
 

@@ -48,6 +48,7 @@ class WhisperDropSidecar:
         self.transcriber = None
         self.recorder = None
         self._recording_thread = None
+        self._done_sent = threading.Event()
 
     def _on_audio_level(self, level: float):
         send({"status": "audio_level", "level": round(level, 3)})
@@ -79,7 +80,13 @@ class WhisperDropSidecar:
         )
 
     def _transcribe_and_finish(self, audio):
-        """Shared pipeline: transcribe audio, optionally post-process, then send result."""
+        """Shared pipeline: transcribe audio, optionally post-process, then send result.
+        Uses _done_sent flag to prevent duplicate 'done' messages from concurrent paths.
+        """
+        if self._done_sent.is_set():
+            return
+        self._done_sent.set()
+
         try:
             if self.transcriber is None:
                 self._init_transcriber()
@@ -119,10 +126,17 @@ class WhisperDropSidecar:
         if self.recorder is None:
             self._init_recorder()
 
+        self._done_sent.clear()
+
         def record_and_transcribe():
-            send({"status": "recording_started"})
-            audio = self.recorder.record_until_silence()
-            self._transcribe_and_finish(audio)
+            try:
+                send({"status": "recording_started"})
+                audio = self.recorder.record_until_silence()
+                self._transcribe_and_finish(audio)
+            except Exception as e:
+                if not self._done_sent.is_set():
+                    self._done_sent.set()
+                    send({"status": "error", "message": str(e)})
 
         self._recording_thread = threading.Thread(target=record_and_transcribe, daemon=True)
         self._recording_thread.start()
