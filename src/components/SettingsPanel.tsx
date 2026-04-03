@@ -240,13 +240,13 @@ function SettingsPanel() {
           <textarea
             value={settings.customVocabulary}
             onChange={(e) => update("customVocabulary", e.target.value)}
-            placeholder={"例: WhisperDrop、Tauri、React、TypeScript、音声認識"}
+            placeholder={"辻稜大（つじりょうた）がWhisperDropの開発について話しています。Tauri、React、TypeScriptを使用。"}
             rows={4}
             className="input-field resize-y"
           />
         </Label>
         <p className="text-xs text-white/40">
-          認識させたい固有名詞・専門用語を入力してください。Whisperの認識精度が向上します。
+          単語の羅列より文脈付きの文章が効果的です。人名は「漢字（読み）」形式で、文中に複数回含めると精度が上がります。(上限: 244トークン)
         </p>
       </Section>
 
