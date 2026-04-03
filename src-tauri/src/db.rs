@@ -19,14 +19,17 @@ CREATE TABLE IF NOT EXISTS history (
 );
 ";
 
+#[allow(dead_code)]
 pub const INSERT_SQL: &str = "
 INSERT INTO history (text, language, duration_ms) VALUES ($1, $2, $3)
 ";
 
+#[allow(dead_code)]
 pub const SELECT_RECENT_SQL: &str = "
 SELECT id, text, language, timestamp, duration_ms FROM history ORDER BY id DESC LIMIT 100
 ";
 
+#[allow(dead_code)]
 pub const CLEANUP_SQL: &str = "
 DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT 100)
 ";

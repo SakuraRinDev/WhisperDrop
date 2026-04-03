@@ -78,6 +78,41 @@ class WhisperDropSidecar:
             device=self.config["input_device"],
         )
 
+    def _transcribe_and_finish(self, audio):
+        """Shared pipeline: transcribe audio, optionally post-process, then send result."""
+        try:
+            if self.transcriber is None:
+                self._init_transcriber()
+
+            if len(audio) == 0:
+                send({"status": "done", "text": ""})
+                return
+
+            audio_sec = len(audio) / 16000
+            send({"status": "transcribing"})
+            t0 = time.time()
+            text = self.transcriber.transcribe(audio)
+            t_transcribe = time.time() - t0
+
+            t_postprocess = 0.0
+            if self.config["llm_postprocess"] and text:
+                t1 = time.time()
+                text = self._run_postprocess(text)
+                t_postprocess = time.time() - t1
+
+            send({
+                "status": "done", "text": text,
+                "debug": {
+                    "audio_sec": round(audio_sec, 1),
+                    "transcribe_ms": round(t_transcribe * 1000),
+                    "postprocess_ms": round(t_postprocess * 1000),
+                    "model": self.config.get("model"),
+                    "llm_model": self.config.get("ollama_model") if self.config.get("llm_postprocess") else None,
+                },
+            })
+        except Exception as e:
+            send({"status": "error", "message": str(e)})
+
     def handle_start_recording(self):
         if self.transcriber is None:
             self._init_transcriber()
@@ -85,42 +120,11 @@ class WhisperDropSidecar:
             self._init_recorder()
 
         def record_and_transcribe():
-            try:
-                send({"status": "recording_started"})
-                audio = self.recorder.record_until_silence()
+            send({"status": "recording_started"})
+            audio = self.recorder.record_until_silence()
+            self._transcribe_and_finish(audio)
 
-                if len(audio) == 0:
-                    send({"status": "done", "text": ""})
-                    return
-
-                audio_sec = len(audio) / 16000
-                send({"status": "transcribing"})
-                t0 = time.time()
-                text = self.transcriber.transcribe(audio)
-                t_transcribe = time.time() - t0
-
-                t_postprocess = 0.0
-                if self.config["llm_postprocess"] and text:
-                    t1 = time.time()
-                    text = self._run_postprocess(text)
-                    t_postprocess = time.time() - t1
-
-                send({
-                    "status": "done", "text": text,
-                    "debug": {
-                        "audio_sec": round(audio_sec, 1),
-                        "transcribe_ms": round(t_transcribe * 1000),
-                        "postprocess_ms": round(t_postprocess * 1000),
-                        "model": self.config.get("model"),
-                        "llm_model": self.config.get("ollama_model") if self.config.get("llm_postprocess") else None,
-                    },
-                })
-            except Exception as e:
-                send({"status": "error", "message": str(e)})
-
-        self._recording_thread = threading.Thread(
-            target=record_and_transcribe, daemon=True
-        )
+        self._recording_thread = threading.Thread(target=record_and_transcribe, daemon=True)
         self._recording_thread.start()
 
     def handle_stop_recording(self):
@@ -128,42 +132,7 @@ class WhisperDropSidecar:
             return
 
         audio = self.recorder.stop()
-
-        if len(audio) == 0:
-            send({"status": "done", "text": ""})
-            return
-
-        def transcribe_and_postprocess():
-            try:
-                if self.transcriber is None:
-                    self._init_transcriber()
-
-                audio_sec = len(audio) / 16000
-                send({"status": "transcribing"})
-                t0 = time.time()
-                text = self.transcriber.transcribe(audio)
-                t_transcribe = time.time() - t0
-
-                t_postprocess = 0.0
-                if self.config["llm_postprocess"] and text:
-                    t1 = time.time()
-                    text = self._run_postprocess(text)
-                    t_postprocess = time.time() - t1
-
-                send({
-                    "status": "done", "text": text,
-                    "debug": {
-                        "audio_sec": round(audio_sec, 1),
-                        "transcribe_ms": round(t_transcribe * 1000),
-                        "postprocess_ms": round(t_postprocess * 1000),
-                        "model": self.config.get("model"),
-                        "llm_model": self.config.get("ollama_model") if self.config.get("llm_postprocess") else None,
-                    },
-                })
-            except Exception as e:
-                send({"status": "error", "message": str(e)})
-
-        t = threading.Thread(target=transcribe_and_postprocess, daemon=True)
+        t = threading.Thread(target=self._transcribe_and_finish, args=(audio,), daemon=True)
         t.start()
 
     def handle_set_config(self, config: dict):

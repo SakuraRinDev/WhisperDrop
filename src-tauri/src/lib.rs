@@ -92,15 +92,19 @@ fn paste_text(text: String) -> Result<(), String> {
     paste::paste_text(&text)
 }
 
+const OVERLAY_WIDTH: f64 = 440.0;
+const OVERLAY_HEIGHT: f64 = 88.0;
+const OVERLAY_BOTTOM_MARGIN: f64 = 40.0;
+
 fn position_overlay(app: &tauri::AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if let Ok(Some(monitor)) = overlay.current_monitor() {
             let screen = monitor.size();
             let scale = monitor.scale_factor();
-            let win_width = (440.0 * scale) as u32;
-            let win_height = (88.0 * scale) as u32;
+            let win_width = (OVERLAY_WIDTH * scale) as u32;
+            let win_height = (OVERLAY_HEIGHT * scale) as u32;
             let x = (screen.width / 2).saturating_sub(win_width / 2) as i32;
-            let y = (screen.height).saturating_sub(win_height + (40.0 * scale) as u32) as i32;
+            let y = (screen.height).saturating_sub(win_height + (OVERLAY_BOTTOM_MARGIN * scale) as u32) as i32;
             let _ = overlay.set_position(tauri::PhysicalPosition { x, y });
         }
     }

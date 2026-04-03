@@ -68,9 +68,8 @@ class AudioRecorder:
         if self._recording:
             self._queue.put(indata.copy())
 
-    def start(self):
-        """Start recording from microphone."""
-        self._ensure_vad()
+    def _open_stream(self):
+        """Create and start a new audio input stream."""
         self._audio_buffer = []
         self._recording = True
         self._stop_event.clear()
@@ -83,6 +82,11 @@ class AudioRecorder:
             callback=self._audio_callback,
         )
         self._stream.start()
+
+    def start(self):
+        """Start recording from microphone."""
+        self._ensure_vad()
+        self._open_stream()
 
     def stop(self) -> np.ndarray:
         """Stop recording and return the audio buffer as a numpy array."""
@@ -110,19 +114,7 @@ class AudioRecorder:
         import torch
 
         self._ensure_vad()
-        self._audio_buffer = []
-        self._recording = True
-        self._stop_event.clear()
-
-        self._stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=CHANNELS,
-            dtype="float32",
-            blocksize=BLOCK_SIZE,
-            device=self.device,
-            callback=self._audio_callback,
-        )
-        self._stream.start()
+        self._open_stream()
 
         silent_chunks = 0
         chunks_for_silence = int(

@@ -56,19 +56,23 @@ def get_prompts(language: str | None) -> tuple[str, str]:
     return SYSTEM_PROMPTS[key], USER_MSG_TEMPLATES[key]
 
 
+def _build_messages(text: str, language: str | None, instruction: str | None) -> tuple[str, str]:
+    """Build system prompt and user message for cloud APIs."""
+    sys_prompt, msg_tpl = get_prompts(language)
+    user_msg = msg_tpl.format(text=text)
+    if instruction:
+        user_msg += f"\n\n{instruction}"
+    return sys_prompt, user_msg
+
+
 def postprocess_with_claude(
     text: str, api_key: str, instruction: str | None = None, language: str | None = None,
 ) -> str:
     """Post-process transcribed text using Claude API."""
     import anthropic
 
+    sys_prompt, user_msg = _build_messages(text, language, instruction)
     client = anthropic.Anthropic(api_key=api_key)
-    sys_prompt, msg_tpl = get_prompts(language)
-
-    user_msg = msg_tpl.format(text=text)
-    if instruction:
-        user_msg += f"\n\n{instruction}"
-
     message = client.messages.create(
         model="claude-sonnet-4-6-20250514",
         max_tokens=1024,
@@ -84,13 +88,8 @@ def postprocess_with_openai(
     """Post-process transcribed text using OpenAI GPT API."""
     import openai
 
+    sys_prompt, user_msg = _build_messages(text, language, instruction)
     client = openai.OpenAI(api_key=api_key)
-    sys_prompt, msg_tpl = get_prompts(language)
-
-    user_msg = msg_tpl.format(text=text)
-    if instruction:
-        user_msg += f"\n\n{instruction}"
-
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -111,11 +110,7 @@ def postprocess_with_ollama(
     on_token=None,
 ) -> str:
     """Post-process transcribed text using local Ollama with streaming."""
-    sys_prompt, msg_tpl = get_prompts(language)
-
-    user_msg = msg_tpl.format(text=text)
-    if instruction:
-        user_msg += f"\n\n{instruction}"
+    sys_prompt, user_msg = _build_messages(text, language, instruction)
 
     payload = json.dumps({
         "model": model,

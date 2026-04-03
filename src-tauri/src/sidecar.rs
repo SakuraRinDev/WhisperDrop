@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
@@ -103,21 +103,21 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             "recording_started" => {
                                 let _ = app_handle.emit("recording-started", ());
                             }
-                                    "transcribing" => {
-                                        let _ = app_handle.emit("transcribing", ());
-                                    }
-                                    "postprocessing" => {
-                                        let _ = app_handle.emit("postprocessing", ());
-                                    }
-                                    "postprocessing_token" => {
-                                        let _ = app_handle.emit("postprocessing-token", &msg);
-                                    }
-                                    "done" => {
-                                        if let Some(dbg) = &msg.debug {
-                                            eprintln!("[debug] {}", dbg);
-                                        }
-                                        let _ = app_handle.emit("transcription-done", &msg);
-                                    }
+                            "transcribing" => {
+                                let _ = app_handle.emit("transcribing", ());
+                            }
+                            "postprocessing" => {
+                                let _ = app_handle.emit("postprocessing", ());
+                            }
+                            "postprocessing_token" => {
+                                let _ = app_handle.emit("postprocessing-token", &msg);
+                            }
+                            "done" => {
+                                if let Some(dbg) = &msg.debug {
+                                    eprintln!("[debug] {}", dbg);
+                                }
+                                let _ = app_handle.emit("transcription-done", &msg);
+                            }
                             "error" => {
                                 eprintln!("Sidecar error: {:?}", msg.message);
                                 let _ = app_handle.emit("sidecar-error", &msg);
@@ -128,12 +128,12 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             "devices" => {
                                 let _ = app_handle.emit("devices-list", &msg);
                             }
-                                    "ollama_models" => {
-                                        let _ = app_handle.emit("ollama-models", &msg);
-                                    }
-                                    "pull_start" | "pull_progress" | "pull_complete" | "pull_error" => {
-                                        let _ = app_handle.emit("ollama-pull", &msg);
-                                    }
+                            "ollama_models" => {
+                                let _ = app_handle.emit("ollama-models", &msg);
+                            }
+                            "pull_start" | "pull_progress" | "pull_complete" | "pull_error" => {
+                                let _ = app_handle.emit("ollama-pull", &msg);
+                            }
                             _ => {
                                 let _ = app_handle.emit("sidecar-message", &msg);
                             }
