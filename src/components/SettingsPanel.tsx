@@ -218,55 +218,57 @@ function SettingsPanel() {
         {settings.llmPostprocess && (
           <>
             <Label text="Provider">
-              <select
-                value={settings.llmProvider}
-                onChange={(e) => update("llmProvider", e.target.value as "none" | "claude" | "openai" | "ollama")}
-                className="input-field"
-              >
-                <option value="ollama">Ollama (Local)</option>
-                <option value="claude">Claude (Cloud)</option>
-                <option value="openai">OpenAI GPT (Cloud)</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={settings.llmProvider === "ollama" ? `ollama:${settings.ollamaModel}` : settings.llmProvider}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.startsWith("ollama:")) {
+                      const model = val.slice(7);
+                      save({ ...settings, llmProvider: "ollama", ollamaModel: model });
+                    } else {
+                      update("llmProvider", val as "claude" | "openai");
+                    }
+                  }}
+                  className="input-field flex-1"
+                >
+                  <optgroup label="Local (Ollama)">
+                    {ollamaModels.length === 0 && (
+                      <option value={`ollama:${settings.ollamaModel}`}>
+                        {settings.ollamaModel} (Local)
+                      </option>
+                    )}
+                    {ollamaModels.map((m) => (
+                      <option key={m.name} value={`ollama:${m.name}`}>
+                        {m.name} (Local)
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Cloud API">
+                    <option value="claude">Claude (Cloud)</option>
+                    <option value="openai">OpenAI GPT (Cloud)</option>
+                  </optgroup>
+                </select>
+                <button
+                  onClick={() => invoke("list_ollama_models").catch(() => {})}
+                  className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
+                  title="Ollamaモデル一覧を更新"
+                >
+                  ↻
+                </button>
+              </div>
             </Label>
 
             {settings.llmProvider === "ollama" && (
-              <>
-                <Label text="Ollama Model">
-                  <div className="flex gap-2">
-                    <select
-                      value={settings.ollamaModel}
-                      onChange={(e) => update("ollamaModel", e.target.value)}
-                      className="input-field flex-1"
-                    >
-                      {ollamaModels.length === 0 && (
-                        <option value={settings.ollamaModel}>{settings.ollamaModel}</option>
-                      )}
-                      {ollamaModels.map((m) => (
-                        <option key={m.name} value={m.name}>{m.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => invoke("list_ollama_models").catch(() => {})}
-                      className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
-                      title="Refresh model list"
-                    >
-                      ↻
-                    </button>
-                  </div>
-                </Label>
-                <Label text="Ollama URL">
-                  <input
-                    type="text"
-                    value={settings.ollamaUrl}
-                    onChange={(e) => update("ollamaUrl", e.target.value)}
-                    placeholder="http://localhost:11434"
-                    className="input-field"
-                  />
-                </Label>
-                <p className="text-xs text-white/40">
-                  推奨: qwen2.5:1.5b（軽量・高速）/ qwen2.5:7b（高精度）
-                </p>
-              </>
+              <Label text="Ollama URL">
+                <input
+                  type="text"
+                  value={settings.ollamaUrl}
+                  onChange={(e) => update("ollamaUrl", e.target.value)}
+                  placeholder="http://localhost:11434"
+                  className="input-field"
+                />
+              </Label>
             )}
           </>
         )}
