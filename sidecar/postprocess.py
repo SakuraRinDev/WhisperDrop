@@ -13,8 +13,8 @@ SYSTEM_PROMPTS = {
 - フィラー（えー、あのー、えっと、まあ、うーん等）を除去
 - 句読点（。、）を適切に追加
 - 漢字の誤変換を文脈から修正
-- 和製英語・固有名詞は文脈から推測して適切な表記に修正
-- 絶対に英語に翻訳しない。日本語のまま返す
+- 製品名・サービス名・技術用語はカタカナではなく正式な英語表記にする（例: アクアボイス→AquaVoice、ウィスパー→Whisper、リアクト→React、タウリ→Tauri）
+- 文全体を英語に翻訳しない。日本語の文の中で固有名詞だけ英語にする
 - 意味を変えない、情報を追加しない
 - 修正後のテキストのみ返す（説明不要）""",
 
@@ -25,7 +25,7 @@ Rules:
 - Remove filler words (um, uh, like, you know, so, basically, etc.)
 - Fix punctuation, capitalization, and sentence breaks
 - Correct obvious mishearings based on context
-- Fix proper nouns and technical terms where recognizable
+- Fix proper nouns, product names, and technical terms to their official spelling (e.g., whisper drop→WhisperDrop, aqua voice→AquaVoice)
 - Do NOT translate — keep English as English
 - Do NOT change meaning or add information
 - Return ONLY the cleaned text, no explanations""",
