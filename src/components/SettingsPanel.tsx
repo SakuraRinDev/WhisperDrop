@@ -307,116 +307,31 @@ function SettingsPanel() {
         </Label>
       </Section>
 
-      {/* LLM Post-processing */}
-      <Section title={t("section.llm", L)}>
-        <Label text={t("label.enable", L)}>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.llmPostprocess}
-              onChange={(e) => update("llmPostprocess", e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              {t("llm.desc", L)}
-            </span>
-          </label>
+      {/* Microphone */}
+      <Section title={t("section.mic", L)}>
+        <Label text={t("label.inputDevice", L)}>
+          <div className="flex gap-2">
+            <select
+              value={settings.inputDevice ?? ""}
+              onChange={(e) => update("inputDevice", e.target.value === "" ? null : parseInt(e.target.value))}
+              className="input-field flex-1"
+            >
+              <option value="">System Default</option>
+              {devices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}{d.default ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => invoke("list_audio_devices").catch(() => {})}
+              className="btn-secondary !px-3 !py-2 text-sm"
+              title="Refresh"
+            >
+              ↻
+            </button>
+          </div>
         </Label>
-
-        {settings.llmPostprocess && (
-          <>
-            {ollamaModels.length === 0 && (
-              <div className="p-3 rounded-lg text-sm space-y-2" style={{ background: "var(--alert-amber-bg)", border: "1px solid var(--alert-amber-border)" }}>
-                <p className="font-medium" style={{ color: "var(--alert-amber-text)" }}>{t("llm.noOllama", L)}</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {t("llm.installOllama", L)}
-                </p>
-                <div className="flex gap-2 items-center">
-                  <a
-                    href="https://ollama.com/download"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-blue-500 hover:underline"
-                  >
-                    ollama.com/download
-                  </a>
-                  <span className="text-xs" style={{ color: "var(--text-faint)" }}>→ {t("afterInstall", L)}</span>
-                  <button
-                    onClick={() => invoke("list_ollama_models").catch(() => {})}
-                    className="btn-secondary ml-auto text-xs !px-2 !py-1"
-                  >
-                    ↻
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {ollamaModels.length > 0 && ollamaModels.filter((m) => m.installed).length === 0 && (
-              <div className="p-3 rounded-lg text-sm space-y-1" style={{ background: "var(--alert-blue-bg)", border: "1px solid var(--alert-blue-border)" }}>
-                <p className="font-medium" style={{ color: "var(--alert-blue-text)" }}>{t("llm.noModel", L)}</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {t("llm.dlModel", L)}
-                </p>
-              </div>
-            )}
-
-            <Label text={t("llm.model", L)}>
-              <div className="flex gap-2">
-                <select
-                  value={settings.llmProvider === "ollama" ? `ollama:${settings.ollamaModel}` : settings.llmProvider}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.startsWith("ollama:")) {
-                      const model = val.slice(7);
-                      save({ ...settings, llmProvider: "ollama", ollamaModel: model });
-                    } else {
-                      update("llmProvider", val as "claude" | "openai");
-                    }
-                  }}
-                  className="input-field flex-1"
-                >
-                  <optgroup label="Local (Ollama)">
-                    {ollamaModels.filter((m) => m.installed).length === 0 && (
-                      <option value={`ollama:${settings.ollamaModel}`}>
-                        {settings.ollamaModel} (未インストール)
-                      </option>
-                    )}
-                    {ollamaModels
-                      .filter((m) => m.installed)
-                      .map((m) => (
-                        <option key={m.name} value={`ollama:${m.name}`}>
-                          {m.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                  <optgroup label="Cloud API">
-                    <option value="claude">Claude (Cloud)</option>
-                    <option value="openai">OpenAI GPT (Cloud)</option>
-                  </optgroup>
-                </select>
-                <button
-                  onClick={() => invoke("list_ollama_models").catch(() => {})}
-                  className="btn-secondary !px-3 !py-2 text-sm"
-                  title="Refresh"
-                >
-                  ↻
-                </button>
-              </div>
-            </Label>
-
-            {settings.llmProvider === "ollama" && (
-              <Label text="Ollama URL">
-                <input
-                  type="text"
-                  value={settings.ollamaUrl}
-                  onChange={(e) => update("ollamaUrl", e.target.value)}
-                  placeholder="http://localhost:11434"
-                  className="input-field"
-                />
-              </Label>
-            )}
-          </>
-        )}
       </Section>
 
       </div>
@@ -528,6 +443,119 @@ function SettingsPanel() {
 
       {tab === "advanced" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      {/* LLM Post-processing */}
+      <Section title={t("section.llm", L)} wide>
+        <Label text={t("label.enable", L)}>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.llmPostprocess}
+              onChange={(e) => update("llmPostprocess", e.target.checked)}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {t("llm.desc", L)}
+            </span>
+          </label>
+        </Label>
+
+        {settings.llmPostprocess && (
+          <>
+            {ollamaModels.length === 0 && (
+              <div className="p-3 rounded-lg text-sm space-y-2" style={{ background: "var(--alert-amber-bg)", border: "1px solid var(--alert-amber-border)" }}>
+                <p className="font-medium" style={{ color: "var(--alert-amber-text)" }}>{t("llm.noOllama", L)}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t("llm.installOllama", L)}
+                </p>
+                <div className="flex gap-2 items-center">
+                  <a
+                    href="https://ollama.com/download"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-500 hover:underline"
+                  >
+                    ollama.com/download
+                  </a>
+                  <span className="text-xs" style={{ color: "var(--text-faint)" }}>→ {t("afterInstall", L)}</span>
+                  <button
+                    onClick={() => invoke("list_ollama_models").catch(() => {})}
+                    className="btn-secondary ml-auto text-xs !px-2 !py-1"
+                  >
+                    ↻
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {ollamaModels.length > 0 && ollamaModels.filter((m) => m.installed).length === 0 && (
+              <div className="p-3 rounded-lg text-sm space-y-1" style={{ background: "var(--alert-blue-bg)", border: "1px solid var(--alert-blue-border)" }}>
+                <p className="font-medium" style={{ color: "var(--alert-blue-text)" }}>{t("llm.noModel", L)}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t("llm.dlModel", L)}
+                </p>
+              </div>
+            )}
+
+            <Label text={t("llm.model", L)}>
+              <div className="flex gap-2">
+                <select
+                  value={settings.llmProvider === "ollama" ? `ollama:${settings.ollamaModel}` : settings.llmProvider}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.startsWith("ollama:")) {
+                      const model = val.slice(7);
+                      save({ ...settings, llmProvider: "ollama", ollamaModel: model });
+                    } else {
+                      update("llmProvider", val as "claude" | "openai");
+                    }
+                  }}
+                  className="input-field flex-1"
+                >
+                  <optgroup label="Local (Ollama)">
+                    {ollamaModels.filter((m) => m.installed).length === 0 && (
+                      <option value={`ollama:${settings.ollamaModel}`}>
+                        {settings.ollamaModel} (未インストール)
+                      </option>
+                    )}
+                    {ollamaModels
+                      .filter((m) => m.installed)
+                      .map((m) => (
+                        <option key={m.name} value={`ollama:${m.name}`}>
+                          {m.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label="Cloud API">
+                    <option value="claude">Claude (Cloud)</option>
+                    <option value="openai">OpenAI GPT (Cloud)</option>
+                  </optgroup>
+                </select>
+                <button
+                  onClick={() => invoke("list_ollama_models").catch(() => {})}
+                  className="btn-secondary !px-3 !py-2 text-sm"
+                  title="Refresh"
+                >
+                  ↻
+                </button>
+              </div>
+            </Label>
+
+            {settings.llmProvider === "ollama" && (
+              <Label text="Ollama URL">
+                <input
+                  type="text"
+                  value={settings.ollamaUrl}
+                  onChange={(e) => update("ollamaUrl", e.target.value)}
+                  placeholder="http://localhost:11434"
+                  className="input-field"
+                />
+              </Label>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title={t("section.apiKeys", L)}>
         <Label text="Claude API Key">
           <input
@@ -546,32 +574,6 @@ function SettingsPanel() {
             placeholder="sk-..."
             className="input-field"
           />
-        </Label>
-      </Section>
-
-      <Section title={t("section.mic", L)}>
-        <Label text={t("label.inputDevice", L)}>
-          <div className="flex gap-2">
-            <select
-              value={settings.inputDevice ?? ""}
-              onChange={(e) => update("inputDevice", e.target.value === "" ? null : parseInt(e.target.value))}
-              className="input-field flex-1"
-            >
-              <option value="">System Default</option>
-              {devices.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}{d.default ? " (default)" : ""}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => invoke("list_audio_devices").catch(() => {})}
-              className="btn-secondary !px-3 !py-2 text-sm"
-              title="Refresh"
-            >
-              ↻
-            </button>
-          </div>
         </Label>
       </Section>
 

@@ -21,13 +21,22 @@ function App() {
 
   return (
     <div className="settings-container">
-      <header className="settings-header sticky top-0 z-10 px-8 py-5">
-        <h1 className="font-display text-3xl font-light tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <main className="p-8 max-w-4xl mx-auto">
+        {/* Banner */}
+        <div className="overflow-hidden" style={{ borderRadius: 6 }}>
+          <img
+            src="/header-banner.png"
+            alt=""
+            style={{ width: "100%", height: "auto", display: "block", marginTop: "-8%" }}
+          />
+        </div>
+
+        <h1
+          className="font-display text-2xl font-light tracking-tight mt-4 mb-6"
+          style={{ color: "var(--text-primary)" }}
+        >
           WhisperDrop
         </h1>
-      </header>
-
-      <main className="p-8">
         <SettingsPanel />
       </main>
     </div>

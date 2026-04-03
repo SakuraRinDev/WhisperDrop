@@ -3,13 +3,15 @@ import { listen } from "@tauri-apps/api/event";
 
 type RecordingState = "idle" | "listening" | "transcribing" | "postprocessing";
 
+const OVERLAY_VIDEOS = ["/overlay-1.mp4", "/overlay-2.mp4", "/overlay-3.mp4"];
+function pickRandom() {
+  return OVERLAY_VIDEOS[Math.floor(Math.random() * OVERLAY_VIDEOS.length)];
+}
+
 interface AudioLevelPayload {
   status: string;
   level: number;
 }
-
-const W = 320;
-const H = 72;
 
 function OverlayBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,14 +19,14 @@ function OverlayBar() {
   const [streamText, setStreamText] = useState("");
   const audioLevelRef = useRef(0);
   const animFrameRef = useRef(0);
-  const gifKeyRef = useRef(0);
+  const [videoSrc, setVideoSrc] = useState(pickRandom);
 
   useEffect(() => {
     const unlisten1 = listen<string>("recording-state", (event) => {
       const next = event.payload as RecordingState;
       setState((prev) => {
         if (next === "listening" && prev !== "listening") {
-          gifKeyRef.current += 1;
+          setVideoSrc(pickRandom());
         }
         return next;
       });
@@ -58,6 +60,8 @@ function OverlayBar() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
+    const W = 340;
+    const H = 100;
     canvas.width = W * 2;
     canvas.height = H * 2;
     ctx.scale(2, 2);
@@ -65,10 +69,10 @@ function OverlayBar() {
     let phase = 0;
 
     const colors: Record<RecordingState, string[]> = {
-      idle: ["rgba(120,120,140,0.3)", "rgba(100,100,120,0.2)"],
-      listening: ["rgba(94,138,255,0.4)", "rgba(168,85,247,0.25)"],
-      transcribing: ["rgba(255,138,94,0.5)", "rgba(236,72,153,0.35)"],
-      postprocessing: ["rgba(74,222,128,0.5)", "rgba(34,197,94,0.35)"],
+      idle: ["rgba(120,120,140,0.4)", "rgba(100,100,120,0.3)"],
+      listening: ["rgba(94,138,255,0.6)", "rgba(168,85,247,0.4)"],
+      transcribing: ["rgba(255,138,94,0.6)", "rgba(236,72,153,0.4)"],
+      postprocessing: ["rgba(74,222,128,0.6)", "rgba(34,197,94,0.4)"],
     };
 
     function draw() {
@@ -76,28 +80,45 @@ function OverlayBar() {
       const level = audioLevelRef.current;
       const stateColors = colors[state] || colors.idle;
 
-      const amplitude = (state === "idle" ? 3 : 5) + level * 12;
-      const speed = (state === "idle" ? 0.012 : 0.025) + level * 0.015;
+      const baseAmplitude = state === "idle" ? 4 : 8;
+      const amplitude = baseAmplitude + level * 16;
+      const speed = state === "idle" ? 0.015 : 0.03 + level * 0.02;
       phase += speed;
 
       for (let w = 0; w < 3; w++) {
         ctx.beginPath();
-        ctx.strokeStyle = stateColors[w % stateColors.length];
-        ctx.lineWidth = 1.8 - w * 0.4;
-        const freq = 0.014 + w * 0.004;
+        const waveColor = stateColors[w % stateColors.length];
+        ctx.strokeStyle = waveColor;
+        ctx.lineWidth = 2.5 - w * 0.5;
+
+        const freq = 0.015 + w * 0.005;
         const phaseOffset = w * 1.2;
         const amp = amplitude * (1 - w * 0.25);
 
         for (let x = 0; x < W; x++) {
           const envelope = Math.sin((x / W) * Math.PI);
-          const y = H / 2 +
+          const y =
+            H / 2 +
             Math.sin(x * freq + phase + phaseOffset) * amp * envelope +
-            Math.sin(x * freq * 2.5 + phase * 1.5 + phaseOffset) * amp * 0.2 * envelope;
+            Math.sin(x * freq * 2.5 + phase * 1.5 + phaseOffset) *
+              amp *
+              0.3 *
+              envelope;
+
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
       }
+
+      const gradient = ctx.createRadialGradient(
+        W / 2, H / 2, 0,
+        W / 2, H / 2, 60 + level * 40,
+      );
+      gradient.addColorStop(0, stateColors[0].replace("0.6", "0.15"));
+      gradient.addColorStop(1, "transparent");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
 
       animFrameRef.current = requestAnimationFrame(draw);
     }
@@ -109,47 +130,28 @@ function OverlayBar() {
   const isListening = state === "listening";
   const showStream = state === "postprocessing" && streamText;
 
-  const label =
-    state === "idle" ? "" :
-    state === "listening" ? "Listening..." :
-    state === "transcribing" ? "Transcribing..." :
-    "Post-processing...";
-
   return (
-    <div
-      style={{
-        width: W,
-        height: H,
-        borderRadius: "50%",
-        background: "rgba(8, 8, 16, 0.85)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        margin: "8px auto",
-        position: "relative",
-        overflow: "hidden",
-        animation: "fadeIn 150ms ease-out",
-      }}
-    >
+    <div className="overlay-bar">
       <canvas
         ref={canvasRef}
-        style={{ width: W, height: H, position: "absolute", top: 0, left: 0, opacity: isListening ? 0.3 : 0.7 }}
+        style={{ width: 340, height: 100, position: "absolute", top: 0, left: 0 }}
       />
 
       {isListening && (
-        <img
-          key={gifKeyRef.current}
-          src="/listening.gif"
-          alt=""
+        <video
+          key={videoSrc}
+          src={videoSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            opacity: 0.4,
+            opacity: 0.3,
             pointerEvents: "none",
             mixBlendMode: "screen",
           }}
@@ -160,19 +162,24 @@ function OverlayBar() {
         style={{
           position: "relative",
           zIndex: 1,
-          color: "rgba(255,255,255,0.8)",
-          fontSize: showStream ? 10 : 13,
-          fontWeight: 400,
-          fontFamily: "'Cormorant Garamond', Georgia, serif",
-          letterSpacing: "0.1em",
-          textShadow: "0 1px 8px rgba(0,0,0,0.8)",
-          maxWidth: W - 60,
+          color: "rgba(255,255,255,0.7)",
+          fontSize: showStream ? 11 : 13,
+          fontWeight: 500,
+          letterSpacing: "0.03em",
+          textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+          maxWidth: 300,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          padding: "0 20px",
         }}
       >
-        {showStream ? streamText : label}
+        {showStream ? streamText : (
+          state === "idle" ? "" :
+          state === "listening" ? "Listening..." :
+          state === "transcribing" ? "Transcribing..." :
+          "Post-processing..."
+        )}
       </span>
     </div>
   );
