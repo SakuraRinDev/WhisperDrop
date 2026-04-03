@@ -19,7 +19,7 @@ if sys.platform == "win32":
 
 from audio import AudioRecorder, list_input_devices
 from transcribe import LocalTranscriber, CloudTranscriber, create_transcriber
-from postprocess import postprocess, list_ollama_models, load_recommended_models, pull_ollama_model
+from postprocess import postprocess, list_ollama_models, load_recommended_models, pull_ollama_model, warmup_ollama_model
 
 
 def send(msg: dict):
@@ -186,6 +186,21 @@ class WhisperDropSidecar:
             self.recorder = None
 
         send({"status": "config_updated", "model": new_model})
+
+        if self.config.get("llm_postprocess") and self.config.get("llm_provider") == "ollama":
+            ollama_model = self.config.get("ollama_model", "gemma4:e2b")
+            ollama_url = self.config.get("ollama_url", "http://localhost:11434")
+            threading.Thread(
+                target=self._warmup_ollama,
+                args=(ollama_model, ollama_url),
+                daemon=True,
+            ).start()
+
+    def _warmup_ollama(self, model: str, url: str):
+        send({"status": "info", "message": f"Warming up {model}..."})
+        ok = warmup_ollama_model(model, url)
+        if ok:
+            send({"status": "info", "message": f"{model} ready"})
 
     def _run_postprocess(self, text: str) -> str:
         send({"status": "postprocessing"})

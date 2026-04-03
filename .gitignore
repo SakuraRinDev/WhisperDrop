@@ -34,6 +34,9 @@ settings.json
 # Logs
 *.log
 
+# Source GIF assets (large)
+Gif/
+
 # Agent/tool artifacts
 agent-tools/
 agent-transcripts/

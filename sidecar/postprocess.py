@@ -135,7 +135,7 @@ def postprocess_with_ollama(
     )
 
     result_parts = []
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:
         for raw_line in resp:
             line = raw_line.decode("utf-8").strip()
             if not line:
@@ -153,6 +153,28 @@ def postprocess_with_ollama(
                 break
 
     return "".join(result_parts).strip()
+
+
+def warmup_ollama_model(model: str, base_url: str = "http://localhost:11434") -> bool:
+    """Send a minimal request to load the model into VRAM."""
+    try:
+        payload = json.dumps({
+            "model": model,
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": False,
+            "keep_alive": "30m",
+            "options": {"num_predict": 1, "num_ctx": 32},
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{base_url}/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            resp.read()
+        return True
+    except Exception:
+        return False
 
 
 def list_ollama_models(base_url: str = "http://localhost:11434") -> list[dict]:

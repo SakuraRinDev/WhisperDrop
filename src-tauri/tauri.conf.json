@@ -14,8 +14,10 @@
       {
         "label": "main",
         "title": "WhisperDrop",
-        "width": 640,
-        "height": 480,
+        "width": 900,
+        "height": 620,
+        "minWidth": 480,
+        "minHeight": 400,
         "visible": false,
         "decorations": true,
         "center": true
@@ -23,7 +25,7 @@
       {
         "label": "overlay",
         "title": "",
-        "width": 440,
+        "width": 340,
         "height": 88,
         "decorations": false,
         "transparent": true,

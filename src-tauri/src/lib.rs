@@ -179,7 +179,6 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     let mut state = hk.lock().await;
 
-                    // Ignore duplicate done events if already idle
                     if state.recording_state == RecordingState::Idle {
                         return;
                     }
@@ -187,26 +186,55 @@ pub fn run() {
                     drop(state);
 
                     let payload = event.payload();
+                    let mut should_paste = false;
+                    let mut paste_text_str = String::new();
+
                     if let Ok(msg) =
                         serde_json::from_str::<sidecar::SidecarMessage>(payload)
                     {
                         if let Some(text) = &msg.text {
                             if !text.is_empty() {
-                                if let Some(overlay) =
-                                    app_h.get_webview_window("overlay")
-                                {
-                                    let _ = overlay.hide();
-                                }
-
-                                let text = text.clone();
-                                std::thread::spawn(move || {
-                                    if let Err(e) = paste::paste_text(&text) {
-                                        eprintln!("Paste error: {}", e);
-                                    }
-                                });
+                                should_paste = true;
+                                paste_text_str = text.clone();
                             }
                         }
                     }
+
+                    if let Some(overlay) = app_h.get_webview_window("overlay") {
+                        let _ = overlay.hide();
+                    }
+                    let _ = app_h.emit("recording-state", "idle");
+
+                    if should_paste {
+                        std::thread::spawn(move || {
+                            if let Err(e) = paste::paste_text(&paste_text_str) {
+                                eprintln!("Paste error: {}", e);
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Listen for sidecar errors — reset state and hide overlay
+            let app_handle3 = app.handle().clone();
+            let hotkey_state3 = hotkey_state.clone();
+            app.listen("sidecar-error", move |_event| {
+                let hk = hotkey_state3.clone();
+                let app_h = app_handle3.clone();
+
+                tauri::async_runtime::spawn(async move {
+                    let mut state = hk.lock().await;
+                    if state.recording_state == RecordingState::Idle {
+                        return;
+                    }
+                    state.recording_state = RecordingState::Idle;
+                    state.locked = false;
+                    drop(state);
+
+                    if let Some(overlay) = app_h.get_webview_window("overlay") {
+                        let _ = overlay.hide();
+                    }
+                    let _ = app_h.emit("recording-state", "idle");
                 });
             });
 

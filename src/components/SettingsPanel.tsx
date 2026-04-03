@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Store } from "@tauri-apps/plugin-store";
+import { t, type Locale } from "../i18n";
 
 interface AudioDevice {
   id: number;
@@ -32,6 +33,8 @@ interface VocabEntry {
   reading: string;
 }
 
+type Theme = "light" | "dark";
+
 interface Settings {
   transcriptionMode: "local" | "cloud";
   whisperModel: string;
@@ -47,6 +50,8 @@ interface Settings {
   inputDevice: number | null;
   customVocabulary: string;
   vocabularyEntries: VocabEntry[];
+  locale: Locale;
+  theme: Theme;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -64,6 +69,8 @@ const DEFAULT_SETTINGS: Settings = {
   inputDevice: null,
   customVocabulary: "",
   vocabularyEntries: [],
+  locale: "en",
+  theme: "light",
 };
 
 function buildVocabularyPrompt(entries: VocabEntry[]): string {
@@ -94,22 +101,48 @@ const LANGUAGE_OPTIONS = [
 
 function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [saved, setSaved] = useState(false);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [pulling, setPulling] = useState<Record<string, { percent: number; status: string }>>({});
   const [vocabOpen, setVocabOpen] = useState(false);
+  const [tab, setTab] = useState<"settings" | "models" | "dictionary" | "advanced">("settings");
+
+  const L = settings.locale;
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", settings.theme);
+  }, [settings.theme]);
+
+  const sendConfigToSidecar = async (s: Settings) => {
+    await invoke("send_sidecar_config", {
+      config: {
+        mode: s.transcriptionMode,
+        model: s.whisperModel,
+        language: s.language === "auto" ? null : s.language,
+        llm_postprocess: s.llmPostprocess,
+        llm_provider: s.llmProvider,
+        claude_api_key: s.claudeApiKey || null,
+        openai_api_key: s.openaiApiKey || null,
+        vad_threshold: s.vadThreshold,
+        silence_duration: s.silenceDuration,
+        input_device: s.inputDevice,
+        custom_vocabulary: s.customVocabulary,
+        ollama_model: s.ollamaModel,
+        ollama_url: s.ollamaUrl,
+      },
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     (async () => {
       try {
         const store = await Store.load("settings.json");
         const stored = await store.get<Settings>("settings");
-        if (stored) {
-          setSettings({ ...DEFAULT_SETTINGS, ...stored });
-        }
+        const merged = stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
+        setSettings(merged);
+        await sendConfigToSidecar(merged);
       } catch {
-        // Use defaults
+        await sendConfigToSidecar(DEFAULT_SETTINGS);
       }
     })();
   }, []);
@@ -174,28 +207,7 @@ function SettingsPanel() {
       const store = await Store.load("settings.json");
       await store.set("settings", newSettings);
       await store.save();
-
-      // Send config to sidecar
-      await invoke("send_sidecar_config", {
-        config: {
-          mode: newSettings.transcriptionMode,
-          model: newSettings.whisperModel,
-          language: newSettings.language === "auto" ? null : newSettings.language,
-          llm_postprocess: newSettings.llmPostprocess,
-          llm_provider: newSettings.llmProvider,
-          claude_api_key: newSettings.claudeApiKey || null,
-          openai_api_key: newSettings.openaiApiKey || null,
-          vad_threshold: newSettings.vadThreshold,
-          silence_duration: newSettings.silenceDuration,
-          input_device: newSettings.inputDevice,
-          custom_vocabulary: newSettings.customVocabulary,
-          ollama_model: newSettings.ollamaModel,
-          ollama_url: newSettings.ollamaUrl,
-        },
-      });
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
+      await sendConfigToSidecar(newSettings);
     } catch (e) {
       console.error("Failed to save settings:", e);
     }
@@ -206,22 +218,66 @@ function SettingsPanel() {
   };
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto">
+      {/* Tab Navigation + Toggles */}
+      <nav className="flex items-center mb-6 border-b pb-px" style={{ borderColor: "var(--border-card)" }}>
+        <div className="flex gap-6 flex-1">
+          {([
+          { key: "settings" as const, i18n: "tab.settings" as const },
+          { key: "models" as const, i18n: "tab.models" as const },
+          { key: "dictionary" as const, i18n: "tab.dictionary" as const },
+          { key: "advanced" as const, i18n: "section.advanced" as const },
+          ]).map(({ key, i18n }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className="font-display pb-2 text-[15px] font-medium tracking-wide transition-colors"
+              style={{
+                color: tab === key ? "var(--text-primary)" : "var(--text-faint)",
+                borderBottom: tab === key ? "2px solid var(--text-primary)" : "2px solid transparent",
+              }}
+            >
+              {t(i18n, L)}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 pb-2">
+          <button
+            onClick={() => update("locale", L === "en" ? "ja" : "en")}
+            className="font-sans text-xs px-2 py-1 rounded transition-colors"
+            style={{ color: "var(--text-muted)", border: "1px solid var(--border-input)" }}
+            title="Toggle language"
+          >
+            {L === "en" ? "JP" : "EN"}
+          </button>
+          <button
+            onClick={() => update("theme", settings.theme === "light" ? "dark" : "light")}
+            className="text-base leading-none transition-colors"
+            style={{ color: "var(--text-muted)" }}
+            title="Toggle theme"
+          >
+            {settings.theme === "light" ? "🌙" : "☀️"}
+          </button>
+        </div>
+      </nav>
+
+      {tab === "settings" && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Transcription Mode */}
-      <Section title="Transcription">
-        <Label text="Mode">
+      <Section title={t("section.transcription", L)}>
+        <Label text={t("label.mode", L)}>
           <select
             value={settings.transcriptionMode}
             onChange={(e) => update("transcriptionMode", e.target.value as "local" | "cloud")}
             className="input-field"
           >
-            <option value="local">Local (faster-whisper)</option>
-            <option value="cloud">Cloud (OpenAI Whisper API)</option>
+            <option value="local">{t("opt.local", L)}</option>
+            <option value="cloud">{t("opt.cloud", L)}</option>
           </select>
         </Label>
 
         {settings.transcriptionMode === "local" && (
-          <Label text="Model">
+          <Label text={t("label.model", L)}>
             <select
               value={settings.whisperModel}
               onChange={(e) => update("whisperModel", e.target.value)}
@@ -236,7 +292,7 @@ function SettingsPanel() {
           </Label>
         )}
 
-        <Label text="Language">
+        <Label text={t("label.language", L)}>
           <select
             value={settings.language}
             onChange={(e) => update("language", e.target.value)}
@@ -251,44 +307,9 @@ function SettingsPanel() {
         </Label>
       </Section>
 
-      {/* Custom Vocabulary */}
-      <Section title="Custom Vocabulary">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-white/40">
-            {settings.vocabularyEntries.length > 0
-              ? `${settings.vocabularyEntries.filter((e) => e.word.trim()).length} 件登録済み`
-              : "未登録"}
-          </p>
-          <button
-            onClick={() => setVocabOpen(true)}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
-          >
-            辞書を編集
-          </button>
-        </div>
-        {settings.customVocabulary && (
-          <p className="text-xs text-white/30 mt-1 truncate">
-            Prompt: {settings.customVocabulary}
-          </p>
-        )}
-      </Section>
-
-      {vocabOpen && (
-        <VocabularyModal
-          entries={settings.vocabularyEntries}
-          onClose={(entries) => {
-            setVocabOpen(false);
-            if (entries) {
-              const prompt = buildVocabularyPrompt(entries);
-              save({ ...settings, vocabularyEntries: entries, customVocabulary: prompt });
-            }
-          }}
-        />
-      )}
-
       {/* LLM Post-processing */}
-      <Section title="LLM Post-processing (Beta)">
-        <Label text="Enable">
+      <Section title={t("section.llm", L)}>
+        <Label text={t("label.enable", L)}>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -296,8 +317,8 @@ function SettingsPanel() {
               onChange={(e) => update("llmPostprocess", e.target.checked)}
               className="w-4 h-4 rounded"
             />
-            <span className="text-sm text-white/70">
-              LLMでフィラー除去・句読点修正・漢字補正を追加で行う
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {t("llm.desc", L)}
             </span>
           </label>
         </Label>
@@ -305,24 +326,24 @@ function SettingsPanel() {
         {settings.llmPostprocess && (
           <>
             {ollamaModels.length === 0 && (
-              <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm space-y-2">
-                <p className="text-yellow-300/90 font-medium">Ollamaが検出されませんでした</p>
-                <p className="text-white/50 text-xs">
-                  ローカルLLMを利用するには Ollama のインストールが必要です。
+              <div className="p-3 rounded-lg text-sm space-y-2" style={{ background: "var(--alert-amber-bg)", border: "1px solid var(--alert-amber-border)" }}>
+                <p className="font-medium" style={{ color: "var(--alert-amber-text)" }}>{t("llm.noOllama", L)}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t("llm.installOllama", L)}
                 </p>
                 <div className="flex gap-2 items-center">
                   <a
                     href="https://ollama.com/download"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-blue-400 hover:underline"
+                    className="text-xs text-blue-500 hover:underline"
                   >
                     ollama.com/download
                   </a>
-                  <span className="text-white/30 text-xs">→ インストール後「↻」で再取得</span>
+                  <span className="text-xs" style={{ color: "var(--text-faint)" }}>→ {t("afterInstall", L)}</span>
                   <button
                     onClick={() => invoke("list_ollama_models").catch(() => {})}
-                    className="ml-auto px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-xs transition-colors"
+                    className="btn-secondary ml-auto text-xs !px-2 !py-1"
                   >
                     ↻
                   </button>
@@ -331,15 +352,15 @@ function SettingsPanel() {
             )}
 
             {ollamaModels.length > 0 && ollamaModels.filter((m) => m.installed).length === 0 && (
-              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm space-y-1">
-                <p className="text-blue-300/90 font-medium">モデルが未インストールです</p>
-                <p className="text-white/50 text-xs">
-                  下の「Ollama Models」セクションからモデルをDLしてください。軽量な qwen2.5:1.5b (~1GB) がおすすめです。
+              <div className="p-3 rounded-lg text-sm space-y-1" style={{ background: "var(--alert-blue-bg)", border: "1px solid var(--alert-blue-border)" }}>
+                <p className="font-medium" style={{ color: "var(--alert-blue-text)" }}>{t("llm.noModel", L)}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t("llm.dlModel", L)}
                 </p>
               </div>
             )}
 
-            <Label text="モデル">
+            <Label text={t("llm.model", L)}>
               <div className="flex gap-2">
                 <select
                   value={settings.llmProvider === "ollama" ? `ollama:${settings.ollamaModel}` : settings.llmProvider}
@@ -375,8 +396,8 @@ function SettingsPanel() {
                 </select>
                 <button
                   onClick={() => invoke("list_ollama_models").catch(() => {})}
-                  className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
-                  title="Ollamaモデル一覧を更新"
+                  className="btn-secondary !px-3 !py-2 text-sm"
+                  title="Refresh"
                 >
                   ↻
                 </button>
@@ -398,20 +419,24 @@ function SettingsPanel() {
         )}
       </Section>
 
-      {/* Ollama Model Manager */}
-      <Section title="Ollama Models">
-        <p className="text-xs text-white/40 -mt-2 mb-2">
-          モデルの管理・ダウンロード。<code className="text-white/50">sidecar/ollama_models.json</code> を編集して推奨モデルを追加できます。
+      </div>
+      )}
+
+      {tab === "models" && (
+      <div>
+      <Section title={t("section.ollamaModels", L)}>
+        <p className="text-xs -mt-2 mb-2" style={{ color: "var(--text-faint)" }}>
+          {t("ollama.desc", L)}
         </p>
         <div className="space-y-2">
           {ollamaModels.length === 0 && (
-            <p className="text-sm text-white/50">
-              Ollama未接続、または読み込み中…
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {t("ollama.notConnected", L)}
               <button
                 onClick={() => invoke("list_ollama_models").catch(() => {})}
-                className="ml-2 text-blue-400 hover:underline"
+                className="ml-2 text-blue-500 hover:underline"
               >
-                再取得
+                {t("ollama.retry", L)}
               </button>
             </p>
           )}
@@ -421,29 +446,28 @@ function SettingsPanel() {
             return (
               <div
                 key={m.name}
-                className={`flex items-center gap-3 p-3 rounded-lg ${
-                  m.installed ? "bg-white/5" : "bg-white/[0.02]"
-                }`}
+                className="flex items-center gap-3 p-3 rounded-lg transition-colors"
+                style={{ border: "1px solid var(--border-card)" }}
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-white/90 truncate block">
+                  <span className="text-sm font-medium truncate block" style={{ color: "var(--text-primary)" }}>
                     {m.name}
                   </span>
                   {m.description && (
-                    <p className="text-xs text-white/40 truncate">{m.description}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--text-faint)" }}>{m.description}</p>
                   )}
                   {m.size_label && !m.installed && (
-                    <p className="text-xs text-white/30">{m.size_label}</p>
+                    <p className="text-xs" style={{ color: "var(--text-faint)" }}>{m.size_label}</p>
                   )}
                   {isPulling && pullInfo && (
                     <div className="mt-1.5">
-                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border-card)" }}>
                         <div
                           className="h-full bg-blue-500 transition-all duration-300"
                           style={{ width: `${Math.min(pullInfo.percent, 100)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-white/40 mt-0.5">
+                      <p className="text-[10px] mt-0.5" style={{ color: "var(--text-faint)" }}>
                         {pullInfo.status} {pullInfo.percent > 0 ? `${pullInfo.percent}%` : ""}
                       </p>
                     </div>
@@ -455,18 +479,18 @@ function SettingsPanel() {
                       onClick={() =>
                         invoke("pull_ollama_model", { model: m.name }).catch(() => {})
                       }
-                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-medium text-white transition-colors"
+                      className="btn-primary text-xs !px-3 !py-1.5"
                     >
                       DL
                     </button>
                   )}
                   {m.installed && (
-                    <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                   {isPulling && (
-                    <span className="text-xs text-white/40 animate-pulse">DL中…</span>
+                    <span className="text-xs animate-pulse" style={{ color: "var(--text-faint)" }}>{t("ollama.downloading", L)}</span>
                   )}
                 </div>
               </div>
@@ -474,9 +498,37 @@ function SettingsPanel() {
           })}
         </div>
       </Section>
+      </div>
+      )}
 
-      {/* API Keys */}
-      <Section title="API Keys">
+      {tab === "dictionary" && (
+      <div>
+      <Section title={t("section.vocabulary", L)}>
+        <p className="text-xs -mt-2 mb-3" style={{ color: "var(--text-faint)" }}>
+          {t("vocab.desc", L)}
+        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {settings.vocabularyEntries.length > 0
+              ? t("vocab.registered", L, { n: settings.vocabularyEntries.filter((e) => e.word.trim()).length })
+              : t("vocab.none", L)}
+          </p>
+          <button onClick={() => setVocabOpen(true)} className="btn-secondary text-sm">
+            {t("vocab.edit", L)}
+          </button>
+        </div>
+        {settings.customVocabulary && (
+          <p className="text-xs mt-2 truncate" style={{ color: "var(--text-faint)" }}>
+            Prompt: {settings.customVocabulary}
+          </p>
+        )}
+      </Section>
+      </div>
+      )}
+
+      {tab === "advanced" && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Section title={t("section.apiKeys", L)}>
         <Label text="Claude API Key">
           <input
             type="password"
@@ -497,9 +549,8 @@ function SettingsPanel() {
         </Label>
       </Section>
 
-      {/* Microphone */}
-      <Section title="Microphone">
-        <Label text="Input Device">
+      <Section title={t("section.mic", L)}>
+        <Label text={t("label.inputDevice", L)}>
           <div className="flex gap-2">
             <select
               value={settings.inputDevice ?? ""}
@@ -515,8 +566,8 @@ function SettingsPanel() {
             </select>
             <button
               onClick={() => invoke("list_audio_devices").catch(() => {})}
-              className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
-              title="Refresh device list"
+              className="btn-secondary !px-3 !py-2 text-sm"
+              title="Refresh"
             >
               ↻
             </button>
@@ -524,8 +575,7 @@ function SettingsPanel() {
         </Label>
       </Section>
 
-      {/* Advanced */}
-      <Section title="Advanced">
+      <Section title="VAD / Silence">
         <Label text={`VAD Threshold: ${settings.vadThreshold}`}>
           <input
             type="range"
@@ -549,20 +599,36 @@ function SettingsPanel() {
           />
         </Label>
       </Section>
-
-      {saved && (
-        <div className="text-center text-green-400 text-sm animate-pulse">
-          Settings saved
-        </div>
+      </div>
       )}
+
+      {vocabOpen && (
+        <VocabularyModal
+          entries={settings.vocabularyEntries}
+          locale={L}
+          onClose={(entries) => {
+            setVocabOpen(false);
+            if (entries) {
+              const prompt = buildVocabularyPrompt(entries);
+              save({ ...settings, vocabularyEntries: entries, customVocabulary: prompt });
+            }
+          }}
+        />
+      )}
+
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="bg-white/5 rounded-xl p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">
+    <div
+      className={`card space-y-4 ${wide ? "lg:col-span-2" : ""}`}
+    >
+      <h2
+        className="font-display text-[15px] font-medium uppercase tracking-[0.12em]"
+        style={{ color: "var(--text-section)" }}
+      >
         {title}
       </h2>
       {children}
@@ -573,7 +639,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Label({ text, children }: { text: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-white/80">{text}</label>
+      <label className="block text-[15px] font-medium" style={{ color: "var(--text-secondary)" }}>{text}</label>
       {children}
     </div>
   );
@@ -582,9 +648,11 @@ function Label({ text, children }: { text: string; children: React.ReactNode }) 
 function VocabularyModal({
   entries: initialEntries,
   onClose,
+  locale,
 }: {
   entries: VocabEntry[];
   onClose: (entries: VocabEntry[] | null) => void;
+  locale: Locale;
 }) {
   const [rows, setRows] = useState<VocabEntry[]>(() =>
     initialEntries.length > 0 ? [...initialEntries] : [{ word: "", reading: "" }],
@@ -603,20 +671,22 @@ function VocabularyModal({
   return (
     <div className="modal-backdrop" onClick={() => onClose(null)}>
       <div
-        className="bg-[#1a1a2e] rounded-2xl shadow-2xl border border-white/10 w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
+        className="card shadow-xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-white/10">
-          <h3 className="text-base font-semibold text-white/90">辞書登録</h3>
-          <p className="text-xs text-white/40 mt-1">
-            単語/名前と読みを登録すると、Whisperの認識精度が向上します。
+        <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border-card)" }}>
+          <h3 className="text-xl font-medium" style={{ color: "var(--text-primary)" }}>
+            {locale === "ja" ? "辞書登録" : "Dictionary"}
+          </h3>
+          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+            {t("vocab.desc", locale)}
           </p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
           <div className="grid grid-cols-[1fr_1fr_32px] gap-2 mb-2">
-            <span className="text-xs text-white/50 font-medium">単語・名前</span>
-            <span className="text-xs text-white/50 font-medium">読み（任意）</span>
+            <span className="text-xs font-medium" style={{ color: "var(--text-faint)" }}>{t("vocab.word", locale)}</span>
+            <span className="text-xs font-medium" style={{ color: "var(--text-faint)" }}>{t("vocab.reading", locale)}</span>
             <span />
           </div>
           {rows.map((row, idx) => (
@@ -625,20 +695,21 @@ function VocabularyModal({
                 type="text"
                 value={row.word}
                 onChange={(e) => updateRow(idx, "word", e.target.value)}
-                placeholder="辻稜大"
+                placeholder="Sakura Rin"
                 className="input-field text-sm"
               />
               <input
                 type="text"
                 value={row.reading}
                 onChange={(e) => updateRow(idx, "reading", e.target.value)}
-                placeholder="つじりょうた"
+                placeholder="さくらりん"
                 className="input-field text-sm"
               />
               <button
                 onClick={() => removeRow(idx)}
-                className="flex items-center justify-center text-white/30 hover:text-red-400 transition-colors"
-                title="削除"
+                className="flex items-center justify-center hover:text-red-400 transition-colors"
+                style={{ color: "var(--text-faint)" }}
+                title="Delete"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -648,24 +719,21 @@ function VocabularyModal({
           ))}
           <button
             onClick={addRow}
-            className="text-sm text-blue-400 hover:text-blue-300 transition-colors mt-1"
+            className="text-sm text-blue-500 hover:text-blue-600 transition-colors mt-1"
           >
-            + 行を追加
+            {t("vocab.addRow", locale)}
           </button>
         </div>
 
-        <div className="px-5 py-4 border-t border-white/10 flex justify-end gap-3">
-          <button
-            onClick={() => onClose(null)}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
-          >
-            キャンセル
+        <div className="px-5 py-4 flex justify-end gap-3" style={{ borderTop: "1px solid var(--border-card)" }}>
+          <button onClick={() => onClose(null)} className="btn-secondary text-sm">
+            {t("vocab.cancel", locale)}
           </button>
           <button
             onClick={() => onClose(rows.filter((r) => r.word.trim()))}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium text-white transition-colors"
+            className="btn-primary text-sm"
           >
-            保存
+            {t("vocab.save", locale)}
           </button>
         </div>
       </div>
