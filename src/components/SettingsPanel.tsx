@@ -11,6 +11,22 @@ interface AudioDevice {
   default: boolean;
 }
 
+interface OllamaModel {
+  name: string;
+  description: string;
+  size_label: string;
+  installed: boolean;
+  recommended: boolean;
+}
+
+interface PullEvent {
+  status: string;
+  model?: string;
+  percent?: number;
+  pull_status?: string;
+  message?: string;
+}
+
 interface Settings {
   transcriptionMode: "local" | "cloud";
   whisperModel: string;
@@ -64,7 +80,8 @@ function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
-  const [ollamaModels, setOllamaModels] = useState<{ name: string }[]>([]);
+  const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
+  const [pulling, setPulling] = useState<Record<string, { percent: number; status: string }>>({});
 
   useEffect(() => {
     (async () => {
@@ -91,12 +108,46 @@ function SettingsPanel() {
   }, []);
 
   useEffect(() => {
-    const unlisten = listen<{ models?: { name: string }[] }>("ollama-models", (event) => {
+    const unlisten = listen<{ models?: OllamaModel[] }>("ollama-models", (event) => {
       if (event.payload.models) {
         setOllamaModels(event.payload.models);
       }
     });
     invoke("list_ollama_models").catch(() => {});
+    return () => { unlisten.then((f) => f()); };
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<PullEvent>("ollama-pull", (event) => {
+      const { status, model, percent, pull_status, message } = event.payload;
+      if (!model) return;
+      if (status === "pull_start") {
+        setPulling((p) => ({ ...p, [model]: { percent: 0, status: "starting..." } }));
+      } else if (status === "pull_progress") {
+        setPulling((p) => ({
+          ...p,
+          [model]: { percent: percent ?? 0, status: pull_status ?? "" },
+        }));
+      } else if (status === "pull_complete") {
+        setPulling((p) => {
+          const next = { ...p };
+          delete next[model];
+          return next;
+        });
+      } else if (status === "pull_error") {
+        setPulling((p) => ({
+          ...p,
+          [model]: { percent: 0, status: `Error: ${message}` },
+        }));
+        setTimeout(() => {
+          setPulling((p) => {
+            const next = { ...p };
+            delete next[model];
+            return next;
+          });
+        }, 5000);
+      }
+    });
     return () => { unlisten.then((f) => f()); };
   }, []);
 
@@ -233,16 +284,18 @@ function SettingsPanel() {
                   className="input-field flex-1"
                 >
                   <optgroup label="Local (Ollama)">
-                    {ollamaModels.length === 0 && (
+                    {ollamaModels.filter((m) => m.installed).length === 0 && (
                       <option value={`ollama:${settings.ollamaModel}`}>
                         {settings.ollamaModel} (Local)
                       </option>
                     )}
-                    {ollamaModels.map((m) => (
-                      <option key={m.name} value={`ollama:${m.name}`}>
-                        {m.name} (Local)
-                      </option>
-                    ))}
+                    {ollamaModels
+                      .filter((m) => m.installed)
+                      .map((m) => (
+                        <option key={m.name} value={`ollama:${m.name}`}>
+                          {m.name} (Local)
+                        </option>
+                      ))}
                   </optgroup>
                   <optgroup label="Cloud API">
                     <option value="claude">Claude (Cloud)</option>
@@ -272,6 +325,98 @@ function SettingsPanel() {
             )}
           </>
         )}
+      </Section>
+
+      {/* Ollama Model Manager */}
+      <Section title="Ollama Models">
+        <p className="text-xs text-white/40 -mt-2 mb-2">
+          モデルの管理・ダウンロード。<code className="text-white/50">sidecar/ollama_models.json</code> を編集して推奨モデルを追加できます。
+        </p>
+        <div className="space-y-2">
+          {ollamaModels.length === 0 && (
+            <p className="text-sm text-white/50">
+              Ollama未接続、または読み込み中…
+              <button
+                onClick={() => invoke("list_ollama_models").catch(() => {})}
+                className="ml-2 text-blue-400 hover:underline"
+              >
+                再取得
+              </button>
+            </p>
+          )}
+          {ollamaModels.map((m) => {
+            const isPulling = pulling[m.name] != null;
+            const pullInfo = pulling[m.name];
+            return (
+              <div
+                key={m.name}
+                className={`flex items-center gap-3 p-3 rounded-lg ${
+                  m.installed ? "bg-white/5" : "bg-white/[0.02]"
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-white/90 truncate">
+                      {m.name}
+                    </span>
+                    {m.recommended && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                        推奨
+                      </span>
+                    )}
+                    {m.installed && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
+                        済
+                      </span>
+                    )}
+                  </div>
+                  {m.description && (
+                    <p className="text-xs text-white/40 truncate">{m.description}</p>
+                  )}
+                  {m.size_label && !m.installed && (
+                    <p className="text-xs text-white/30">{m.size_label}</p>
+                  )}
+                  {isPulling && pullInfo && (
+                    <div className="mt-1.5">
+                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{ width: `${Math.min(pullInfo.percent, 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-0.5">
+                        {pullInfo.status} {pullInfo.percent > 0 ? `${pullInfo.percent}%` : ""}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {!m.installed && !isPulling && (
+                    <button
+                      onClick={() =>
+                        invoke("pull_ollama_model", { model: m.name }).catch(() => {})
+                      }
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-medium text-white transition-colors"
+                    >
+                      DL
+                    </button>
+                  )}
+                  {m.installed && (
+                    <button
+                      onClick={() => save({ ...settings, llmProvider: "ollama", ollamaModel: m.name, llmPostprocess: true })}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white/70 transition-colors"
+                    >
+                      使用
+                    </button>
+                  )}
+                  {isPulling && (
+                    <span className="text-xs text-white/40 animate-pulse">DL中…</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </Section>
 
       {/* API Keys */}

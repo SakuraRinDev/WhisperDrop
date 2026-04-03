@@ -19,7 +19,7 @@ if sys.platform == "win32":
 
 from audio import AudioRecorder, list_input_devices
 from transcribe import LocalTranscriber, CloudTranscriber, create_transcriber
-from postprocess import postprocess, list_ollama_models
+from postprocess import postprocess, list_ollama_models, load_recommended_models, pull_ollama_model
 
 
 def send(msg: dict):
@@ -125,12 +125,12 @@ class WhisperDropSidecar:
             send({"status": "transcribing"})
             text = self.transcriber.transcribe(audio)
 
-                if self.config["llm_postprocess"] and text:
-                    text = self._run_postprocess(text)
+            if self.config["llm_postprocess"] and text:
+                text = self._run_postprocess(text)
 
-                send({"status": "done", "text": text})
-            except Exception as e:
-                send({"status": "error", "message": str(e)})
+            send({"status": "done", "text": text})
+        except Exception as e:
+            send({"status": "error", "message": str(e)})
 
     def handle_set_config(self, config: dict):
         old_mode = self.config.get("mode")
@@ -170,8 +170,54 @@ class WhisperDropSidecar:
 
     def handle_list_ollama_models(self):
         url = self.config.get("ollama_url", "http://localhost:11434")
-        models = list_ollama_models(url)
-        send({"status": "ollama_models", "models": models})
+        installed = list_ollama_models(url)
+        recommended = load_recommended_models()
+        installed_names = {m["name"] for m in installed}
+
+        merged = []
+        seen = set()
+        for r in recommended:
+            name = r["name"]
+            seen.add(name)
+            merged.append({
+                "name": name,
+                "description": r.get("description", ""),
+                "size_label": r.get("size_label", ""),
+                "installed": name in installed_names,
+                "recommended": True,
+            })
+        for m in installed:
+            if m["name"] not in seen:
+                merged.append({
+                    "name": m["name"],
+                    "description": "",
+                    "size_label": "",
+                    "installed": True,
+                    "recommended": False,
+                })
+        send({"status": "ollama_models", "models": merged})
+
+    def handle_pull_ollama_model(self, model_name: str):
+        url = self.config.get("ollama_url", "http://localhost:11434")
+        send({"status": "pull_start", "model": model_name})
+
+        def on_progress(status, completed, total):
+            pct = round(completed / total * 100, 1) if total > 0 else 0
+            send({
+                "status": "pull_progress",
+                "model": model_name,
+                "pull_status": status,
+                "completed": completed,
+                "total": total,
+                "percent": pct,
+            })
+
+        try:
+            pull_ollama_model(model_name, base_url=url, on_progress=on_progress)
+            send({"status": "pull_complete", "model": model_name})
+            self.handle_list_ollama_models()
+        except Exception as e:
+            send({"status": "pull_error", "model": model_name, "message": str(e)})
 
     def handle_list_devices(self):
         try:
@@ -212,6 +258,17 @@ class WhisperDropSidecar:
                 self.handle_list_devices()
             elif action == "list_ollama_models":
                 self.handle_list_ollama_models()
+            elif action == "pull_ollama_model":
+                model = cmd.get("model", "")
+                if model:
+                    t = threading.Thread(
+                        target=self.handle_pull_ollama_model,
+                        args=(model,),
+                        daemon=True,
+                    )
+                    t.start()
+                else:
+                    send({"status": "error", "message": "No model specified"})
             elif action == "ping":
                 send({"status": "pong"})
             elif action == "preload":

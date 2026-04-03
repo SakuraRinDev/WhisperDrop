@@ -102,6 +102,54 @@ def list_ollama_models(base_url: str = "http://localhost:11434") -> list[dict]:
         return []
 
 
+def load_recommended_models(config_path: str | None = None) -> list[dict]:
+    """Load recommended models from ollama_models.json."""
+    import os
+    if config_path is None:
+        config_path = os.path.join(os.path.dirname(__file__), "ollama_models.json")
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("recommended", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def pull_ollama_model(
+    model_name: str,
+    base_url: str = "http://localhost:11434",
+    on_progress=None,
+):
+    """Pull (download) an Ollama model with progress callback.
+
+    on_progress(status, completed, total) is called during download.
+    Returns True on success, raises on error.
+    """
+    payload = json.dumps({"name": model_name, "stream": True}).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base_url}/api/pull",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=600) as resp:
+        for raw_line in resp:
+            line = raw_line.decode("utf-8").strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            status = msg.get("status", "")
+            completed = msg.get("completed", 0)
+            total = msg.get("total", 0)
+            if on_progress:
+                on_progress(status, completed, total)
+            if msg.get("error"):
+                raise RuntimeError(msg["error"])
+    return True
+
+
 def postprocess(
     text: str,
     provider: Literal["claude", "openai", "ollama", "none"] = "none",

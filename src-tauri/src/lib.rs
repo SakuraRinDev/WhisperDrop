@@ -63,6 +63,15 @@ async fn list_ollama_models(
 }
 
 #[tauri::command]
+async fn pull_ollama_model(
+    sidecar: tauri::State<'_, SharedSidecar>,
+    model: String,
+) -> Result<(), String> {
+    let cmd = serde_json::json!({"action": "pull_ollama_model", "model": model});
+    send_command(&sidecar, &cmd).await
+}
+
+#[tauri::command]
 async fn list_audio_devices(
     sidecar: tauri::State<'_, SharedSidecar>,
 ) -> Result<(), String> {
@@ -229,6 +238,7 @@ pub fn run() {
             cancel_recording,
             send_sidecar_config,
             list_ollama_models,
+            pull_ollama_model,
             list_audio_devices,
             get_history,
             paste_text,

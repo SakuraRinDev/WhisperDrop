@@ -16,6 +16,14 @@ pub struct SidecarMessage {
     pub level: Option<f64>,
     #[serde(default)]
     pub devices: Option<Vec<AudioDevice>>,
+    #[serde(default)]
+    pub models: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub percent: Option<f64>,
+    #[serde(default)]
+    pub pull_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,9 +117,12 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             "devices" => {
                                 let _ = app_handle.emit("devices-list", &msg);
                             }
-                            "ollama_models" => {
-                                let _ = app_handle.emit("ollama-models", &msg);
-                            }
+                                    "ollama_models" => {
+                                        let _ = app_handle.emit("ollama-models", &msg);
+                                    }
+                                    "pull_start" | "pull_progress" | "pull_complete" | "pull_error" => {
+                                        let _ = app_handle.emit("ollama-pull", &msg);
+                                    }
                             _ => {
                                 let _ = app_handle.emit("sidecar-message", &msg);
                             }
