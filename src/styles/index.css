@@ -79,3 +79,32 @@ body,
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* Dark theme for native select/option elements */
+select,
+select option {
+  background-color: #1a1a2e;
+  color: #e4e4ef;
+}
+
+select optgroup {
+  background-color: #12121e;
+  color: #a0a0b8;
+}
+
+select option:checked {
+  background-color: #2a2a4e;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 150ms ease-out;
+}

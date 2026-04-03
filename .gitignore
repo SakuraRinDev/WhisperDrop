@@ -25,6 +25,12 @@ Thumbs.db
 # Tauri
 src-tauri/gen/
 
+# App data / databases
+*.db
+*.db-shm
+*.db-wal
+settings.json
+
 # Logs
 *.log
 

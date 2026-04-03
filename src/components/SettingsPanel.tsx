@@ -27,6 +27,11 @@ interface PullEvent {
   message?: string;
 }
 
+interface VocabEntry {
+  word: string;
+  reading: string;
+}
+
 interface Settings {
   transcriptionMode: "local" | "cloud";
   whisperModel: string;
@@ -41,6 +46,7 @@ interface Settings {
   silenceDuration: number;
   inputDevice: number | null;
   customVocabulary: string;
+  vocabularyEntries: VocabEntry[];
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -57,7 +63,17 @@ const DEFAULT_SETTINGS: Settings = {
   silenceDuration: 1.5,
   inputDevice: null,
   customVocabulary: "",
+  vocabularyEntries: [],
 };
+
+function buildVocabularyPrompt(entries: VocabEntry[]): string {
+  if (entries.length === 0) return "";
+  const parts = entries
+    .filter((e) => e.word.trim())
+    .map((e) => (e.reading.trim() ? `${e.word}（${e.reading}）` : e.word));
+  if (parts.length === 0) return "";
+  return `${parts.join("、")}について話しています。`;
+}
 
 const MODEL_OPTIONS = [
   { value: "tiny", label: "tiny", desc: "Fastest, lower accuracy" },
@@ -82,6 +98,7 @@ function SettingsPanel() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [pulling, setPulling] = useState<Record<string, { percent: number; status: string }>>({});
+  const [vocabOpen, setVocabOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -236,19 +253,38 @@ function SettingsPanel() {
 
       {/* Custom Vocabulary */}
       <Section title="Custom Vocabulary">
-        <Label text="Vocabulary / Prompt">
-          <textarea
-            value={settings.customVocabulary}
-            onChange={(e) => update("customVocabulary", e.target.value)}
-            placeholder={"辻稜大（つじりょうた）がWhisperDropの開発について話しています。Tauri、React、TypeScriptを使用。"}
-            rows={4}
-            className="input-field resize-y"
-          />
-        </Label>
-        <p className="text-xs text-white/40">
-          単語の羅列より文脈付きの文章が効果的です。人名は「漢字（読み）」形式で、文中に複数回含めると精度が上がります。(上限: 244トークン)
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/40">
+            {settings.vocabularyEntries.length > 0
+              ? `${settings.vocabularyEntries.filter((e) => e.word.trim()).length} 件登録済み`
+              : "未登録"}
+          </p>
+          <button
+            onClick={() => setVocabOpen(true)}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
+          >
+            辞書を編集
+          </button>
+        </div>
+        {settings.customVocabulary && (
+          <p className="text-xs text-white/30 mt-1 truncate">
+            Prompt: {settings.customVocabulary}
+          </p>
+        )}
       </Section>
+
+      {vocabOpen && (
+        <VocabularyModal
+          entries={settings.vocabularyEntries}
+          onClose={(entries) => {
+            setVocabOpen(false);
+            if (entries) {
+              const prompt = buildVocabularyPrompt(entries);
+              save({ ...settings, vocabularyEntries: entries, customVocabulary: prompt });
+            }
+          }}
+        />
+      )}
 
       {/* LLM Post-processing */}
       <Section title="LLM Post-processing">
@@ -261,14 +297,14 @@ function SettingsPanel() {
               className="w-4 h-4 rounded"
             />
             <span className="text-sm text-white/70">
-              LLMでフィラー除去・句読点修正・漢字補正を行う
+              LLMでフィラー除去・句読点修正・漢字補正を追加で行う
             </span>
           </label>
         </Label>
 
         {settings.llmPostprocess && (
           <>
-            <Label text="Provider">
+            <Label text="モデル">
               <div className="flex gap-2">
                 <select
                   value={settings.llmProvider === "ollama" ? `ollama:${settings.ollamaModel}` : settings.llmProvider}
@@ -355,21 +391,9 @@ function SettingsPanel() {
                 }`}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-white/90 truncate">
-                      {m.name}
-                    </span>
-                    {m.recommended && (
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">
-                        推奨
-                      </span>
-                    )}
-                    {m.installed && (
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">
-                        済
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-sm font-medium text-white/90 truncate block">
+                    {m.name}
+                  </span>
                   {m.description && (
                     <p className="text-xs text-white/40 truncate">{m.description}</p>
                   )}
@@ -402,12 +426,9 @@ function SettingsPanel() {
                     </button>
                   )}
                   {m.installed && (
-                    <button
-                      onClick={() => save({ ...settings, llmProvider: "ollama", ollamaModel: m.name, llmPostprocess: true })}
-                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white/70 transition-colors"
-                    >
-                      使用
-                    </button>
+                    <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   )}
                   {isPulling && (
                     <span className="text-xs text-white/40 animate-pulse">DL中…</span>
@@ -519,6 +540,100 @@ function Label({ text, children }: { text: string; children: React.ReactNode }) 
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-white/80">{text}</label>
       {children}
+    </div>
+  );
+}
+
+function VocabularyModal({
+  entries: initialEntries,
+  onClose,
+}: {
+  entries: VocabEntry[];
+  onClose: (entries: VocabEntry[] | null) => void;
+}) {
+  const [rows, setRows] = useState<VocabEntry[]>(() =>
+    initialEntries.length > 0 ? [...initialEntries] : [{ word: "", reading: "" }],
+  );
+
+  const updateRow = (idx: number, field: keyof VocabEntry, value: string) => {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  };
+
+  const addRow = () => setRows((prev) => [...prev, { word: "", reading: "" }]);
+
+  const removeRow = (idx: number) => {
+    setRows((prev) => (prev.length <= 1 ? [{ word: "", reading: "" }] : prev.filter((_, i) => i !== idx)));
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={() => onClose(null)}>
+      <div
+        className="bg-[#1a1a2e] rounded-2xl shadow-2xl border border-white/10 w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-white/10">
+          <h3 className="text-base font-semibold text-white/90">辞書登録</h3>
+          <p className="text-xs text-white/40 mt-1">
+            単語/名前と読みを登録すると、Whisperの認識精度が向上します。
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          <div className="grid grid-cols-[1fr_1fr_32px] gap-2 mb-2">
+            <span className="text-xs text-white/50 font-medium">単語・名前</span>
+            <span className="text-xs text-white/50 font-medium">読み（任意）</span>
+            <span />
+          </div>
+          {rows.map((row, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_1fr_32px] gap-2 mb-2">
+              <input
+                type="text"
+                value={row.word}
+                onChange={(e) => updateRow(idx, "word", e.target.value)}
+                placeholder="辻稜大"
+                className="input-field text-sm"
+              />
+              <input
+                type="text"
+                value={row.reading}
+                onChange={(e) => updateRow(idx, "reading", e.target.value)}
+                placeholder="つじりょうた"
+                className="input-field text-sm"
+              />
+              <button
+                onClick={() => removeRow(idx)}
+                className="flex items-center justify-center text-white/30 hover:text-red-400 transition-colors"
+                title="削除"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={addRow}
+            className="text-sm text-blue-400 hover:text-blue-300 transition-colors mt-1"
+          >
+            + 行を追加
+          </button>
+        </div>
+
+        <div className="px-5 py-4 border-t border-white/10 flex justify-end gap-3">
+          <button
+            onClick={() => onClose(null)}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={() => onClose(rows.filter((r) => r.word.trim()))}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium text-white transition-colors"
+          >
+            保存
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
