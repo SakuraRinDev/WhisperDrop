@@ -5,51 +5,96 @@ import urllib.request
 import urllib.error
 from typing import Literal
 
-SYSTEM_PROMPT = """You are a text post-processor for speech-to-text output.
-Your job is to clean up transcribed text while preserving the speaker's intent.
+SYSTEM_PROMPTS = {
+    "ja": """音声認識の出力テキストを修正するアシスタントです。
+話者の意図を保ちつつ、以下のルールで修正してください。
+
+ルール:
+- フィラー（えー、あのー、えっと、まあ、うーん等）を除去
+- 句読点（。、）を適切に追加
+- 漢字の誤変換を文脈から修正
+- 和製英語・固有名詞は文脈から推測して適切な表記に修正
+- 絶対に英語に翻訳しない。日本語のまま返す
+- 意味を変えない、情報を追加しない
+- 修正後のテキストのみ返す（説明不要）""",
+
+    "en": """You are a post-processor for speech-to-text output.
+Clean up the transcribed text while preserving the speaker's intent.
 
 Rules:
-- Remove filler words (um, uh, えー, あのー, えっと, まあ, etc.)
-- Fix punctuation and add appropriate sentence breaks
-- Do NOT change the meaning or add new information
-- Do NOT translate between languages
-- Keep the same language as the input
-- Return ONLY the cleaned text, no explanations"""
+- Remove filler words (um, uh, like, you know, so, basically, etc.)
+- Fix punctuation, capitalization, and sentence breaks
+- Correct obvious mishearings based on context
+- Fix proper nouns and technical terms where recognizable
+- Do NOT translate — keep English as English
+- Do NOT change meaning or add information
+- Return ONLY the cleaned text, no explanations""",
+
+    "auto": """You are a post-processor for speech-to-text output.
+Clean up the transcribed text while preserving the speaker's intent and language.
+
+Rules:
+- Remove filler words (um, uh, えー, あのー, えっと, like, you know, etc.)
+- Fix punctuation and sentence breaks appropriate to the language
+- For Japanese: fix kanji errors, add 。、 punctuation
+- For English: fix capitalization, proper nouns
+- Do NOT translate between languages — keep the original language
+- Do NOT change meaning or add information
+- Return ONLY the cleaned text, no explanations""",
+}
+
+USER_MSG_TEMPLATES = {
+    "ja": "以下の音声認識テキストを修正してください:\n\n{text}",
+    "en": "Clean up this transcribed text:\n\n{text}",
+    "auto": "Clean up this transcribed text:\n\n{text}",
+}
 
 
-def postprocess_with_claude(text: str, api_key: str, instruction: str | None = None) -> str:
+def get_prompts(language: str | None) -> tuple[str, str]:
+    """Return (system_prompt, user_msg_template) for the given language."""
+    key = language if language in SYSTEM_PROMPTS else "auto"
+    return SYSTEM_PROMPTS[key], USER_MSG_TEMPLATES[key]
+
+
+def postprocess_with_claude(
+    text: str, api_key: str, instruction: str | None = None, language: str | None = None,
+) -> str:
     """Post-process transcribed text using Claude API."""
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
+    sys_prompt, msg_tpl = get_prompts(language)
 
-    user_msg = f"Clean up this transcribed text:\n\n{text}"
+    user_msg = msg_tpl.format(text=text)
     if instruction:
-        user_msg += f"\n\nAdditional instruction: {instruction}"
+        user_msg += f"\n\n{instruction}"
 
     message = client.messages.create(
         model="claude-sonnet-4-6-20250514",
         max_tokens=1024,
-        system=SYSTEM_PROMPT,
+        system=sys_prompt,
         messages=[{"role": "user", "content": user_msg}],
     )
     return message.content[0].text.strip()
 
 
-def postprocess_with_openai(text: str, api_key: str, instruction: str | None = None) -> str:
+def postprocess_with_openai(
+    text: str, api_key: str, instruction: str | None = None, language: str | None = None,
+) -> str:
     """Post-process transcribed text using OpenAI GPT API."""
     import openai
 
     client = openai.OpenAI(api_key=api_key)
+    sys_prompt, msg_tpl = get_prompts(language)
 
-    user_msg = f"Clean up this transcribed text:\n\n{text}"
+    user_msg = msg_tpl.format(text=text)
     if instruction:
-        user_msg += f"\n\nAdditional instruction: {instruction}"
+        user_msg += f"\n\n{instruction}"
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": sys_prompt},
             {"role": "user", "content": user_msg},
         ],
         max_tokens=1024,
@@ -59,19 +104,22 @@ def postprocess_with_openai(text: str, api_key: str, instruction: str | None = N
 
 def postprocess_with_ollama(
     text: str,
-    model: str = "qwen2.5:1.5b",
+    model: str = "gemma4:e2b",
     base_url: str = "http://localhost:11434",
     instruction: str | None = None,
+    language: str | None = None,
 ) -> str:
     """Post-process transcribed text using local Ollama."""
-    user_msg = f"Clean up this transcribed text:\n\n{text}"
+    sys_prompt, msg_tpl = get_prompts(language)
+
+    user_msg = msg_tpl.format(text=text)
     if instruction:
-        user_msg += f"\n\nAdditional instruction: {instruction}"
+        user_msg += f"\n\n{instruction}"
 
     payload = json.dumps({
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": sys_prompt},
             {"role": "user", "content": user_msg},
         ],
         "stream": False,
@@ -156,8 +204,9 @@ def postprocess(
     provider: Literal["claude", "openai", "ollama", "none"] = "none",
     api_key: str | None = None,
     instruction: str | None = None,
-    ollama_model: str = "qwen2.5:1.5b",
+    ollama_model: str = "gemma4:e2b",
     ollama_url: str = "http://localhost:11434",
+    language: str | None = None,
 ) -> str:
     """Post-process text with the specified LLM provider."""
     if provider == "none":
@@ -165,11 +214,11 @@ def postprocess(
     if provider == "claude":
         if not api_key:
             return text
-        return postprocess_with_claude(text, api_key, instruction)
+        return postprocess_with_claude(text, api_key, instruction, language)
     if provider == "openai":
         if not api_key:
             return text
-        return postprocess_with_openai(text, api_key, instruction)
+        return postprocess_with_openai(text, api_key, instruction, language)
     if provider == "ollama":
-        return postprocess_with_ollama(text, ollama_model, ollama_url, instruction)
+        return postprocess_with_ollama(text, ollama_model, ollama_url, instruction, language)
     return text

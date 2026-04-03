@@ -199,8 +199,9 @@ class WhisperDropSidecar:
                 text,
                 provider=self.config["llm_provider"],
                 api_key=api_key,
-                ollama_model=self.config.get("ollama_model", "qwen2.5:1.5b"),
+                ollama_model=self.config.get("ollama_model", "gemma4:e2b"),
                 ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
+                language=self.config.get("language"),
             )
         except Exception as e:
             send({"status": "error", "message": f"PostProcess failed: {e}"})
