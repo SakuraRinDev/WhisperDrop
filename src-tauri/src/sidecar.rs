@@ -24,6 +24,8 @@ pub struct SidecarMessage {
     pub percent: Option<f64>,
     #[serde(default)]
     pub pull_status: Option<String>,
+    #[serde(default)]
+    pub debug: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,9 +109,12 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                                     "postprocessing" => {
                                         let _ = app_handle.emit("postprocessing", ());
                                     }
-                            "done" => {
-                                let _ = app_handle.emit("transcription-done", &msg);
-                            }
+                                    "done" => {
+                                        if let Some(dbg) = &msg.debug {
+                                            eprintln!("[debug] {}", dbg);
+                                        }
+                                        let _ = app_handle.emit("transcription-done", &msg);
+                                    }
                             "error" => {
                                 eprintln!("Sidecar error: {:?}", msg.message);
                                 let _ = app_handle.emit("sidecar-error", &msg);

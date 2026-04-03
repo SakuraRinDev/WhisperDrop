@@ -75,7 +75,7 @@ def postprocess_with_ollama(
             {"role": "user", "content": user_msg},
         ],
         "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 1024},
+        "options": {"temperature": 0.1, "num_predict": 256},
     }).encode("utf-8")
 
     req = urllib.request.Request(

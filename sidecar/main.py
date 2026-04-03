@@ -93,13 +93,28 @@ class WhisperDropSidecar:
                     send({"status": "done", "text": ""})
                     return
 
+                audio_sec = len(audio) / 16000
                 send({"status": "transcribing"})
+                t0 = time.time()
                 text = self.transcriber.transcribe(audio)
+                t_transcribe = time.time() - t0
 
+                t_postprocess = 0.0
                 if self.config["llm_postprocess"] and text:
+                    t1 = time.time()
                     text = self._run_postprocess(text)
+                    t_postprocess = time.time() - t1
 
-                send({"status": "done", "text": text})
+                send({
+                    "status": "done", "text": text,
+                    "debug": {
+                        "audio_sec": round(audio_sec, 1),
+                        "transcribe_ms": round(t_transcribe * 1000),
+                        "postprocess_ms": round(t_postprocess * 1000),
+                        "model": self.config.get("model"),
+                        "llm_model": self.config.get("ollama_model") if self.config.get("llm_postprocess") else None,
+                    },
+                })
             except Exception as e:
                 send({"status": "error", "message": str(e)})
 
@@ -123,13 +138,28 @@ class WhisperDropSidecar:
                 if self.transcriber is None:
                     self._init_transcriber()
 
+                audio_sec = len(audio) / 16000
                 send({"status": "transcribing"})
+                t0 = time.time()
                 text = self.transcriber.transcribe(audio)
+                t_transcribe = time.time() - t0
 
+                t_postprocess = 0.0
                 if self.config["llm_postprocess"] and text:
+                    t1 = time.time()
                     text = self._run_postprocess(text)
+                    t_postprocess = time.time() - t1
 
-                send({"status": "done", "text": text})
+                send({
+                    "status": "done", "text": text,
+                    "debug": {
+                        "audio_sec": round(audio_sec, 1),
+                        "transcribe_ms": round(t_transcribe * 1000),
+                        "postprocess_ms": round(t_postprocess * 1000),
+                        "model": self.config.get("model"),
+                        "llm_model": self.config.get("ollama_model") if self.config.get("llm_postprocess") else None,
+                    },
+                })
             except Exception as e:
                 send({"status": "error", "message": str(e)})
 
