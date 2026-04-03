@@ -19,7 +19,7 @@ if sys.platform == "win32":
 
 from audio import AudioRecorder, list_input_devices
 from transcribe import LocalTranscriber, CloudTranscriber, create_transcriber
-from postprocess import postprocess
+from postprocess import postprocess, list_ollama_models
 
 
 def send(msg: dict):
@@ -42,6 +42,8 @@ class WhisperDropSidecar:
             "silence_duration": 1.5,
             "input_device": None,
             "custom_vocabulary": "",
+            "ollama_model": "qwen2.5:1.5b",
+            "ollama_url": "http://localhost:11434",
         }
         self.transcriber = None
         self.recorder = None
@@ -95,17 +97,7 @@ class WhisperDropSidecar:
                 text = self.transcriber.transcribe(audio)
 
                 if self.config["llm_postprocess"] and text:
-                    send({"status": "postprocessing"})
-                    api_key = (
-                        self.config["claude_api_key"]
-                        if self.config["llm_provider"] == "claude"
-                        else self.config["openai_api_key"]
-                    )
-                    text = postprocess(
-                        text,
-                        provider=self.config["llm_provider"],
-                        api_key=api_key,
-                    )
+                    text = self._run_postprocess(text)
 
                 send({"status": "done", "text": text})
             except Exception as e:
@@ -133,22 +125,12 @@ class WhisperDropSidecar:
             send({"status": "transcribing"})
             text = self.transcriber.transcribe(audio)
 
-            if self.config["llm_postprocess"] and text:
-                send({"status": "postprocessing"})
-                api_key = (
-                    self.config["claude_api_key"]
-                    if self.config["llm_provider"] == "claude"
-                    else self.config["openai_api_key"]
-                )
-                text = postprocess(
-                    text,
-                    provider=self.config["llm_provider"],
-                    api_key=api_key,
-                )
+                if self.config["llm_postprocess"] and text:
+                    text = self._run_postprocess(text)
 
-            send({"status": "done", "text": text})
-        except Exception as e:
-            send({"status": "error", "message": str(e)})
+                send({"status": "done", "text": text})
+            except Exception as e:
+                send({"status": "error", "message": str(e)})
 
     def handle_set_config(self, config: dict):
         old_mode = self.config.get("mode")
@@ -170,6 +152,26 @@ class WhisperDropSidecar:
             self.recorder = None
 
         send({"status": "config_updated", "model": new_model})
+
+    def _run_postprocess(self, text: str) -> str:
+        send({"status": "postprocessing"})
+        api_key = (
+            self.config["claude_api_key"]
+            if self.config["llm_provider"] == "claude"
+            else self.config["openai_api_key"]
+        )
+        return postprocess(
+            text,
+            provider=self.config["llm_provider"],
+            api_key=api_key,
+            ollama_model=self.config.get("ollama_model", "qwen2.5:1.5b"),
+            ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
+        )
+
+    def handle_list_ollama_models(self):
+        url = self.config.get("ollama_url", "http://localhost:11434")
+        models = list_ollama_models(url)
+        send({"status": "ollama_models", "models": models})
 
     def handle_list_devices(self):
         try:
@@ -208,6 +210,8 @@ class WhisperDropSidecar:
                 self.handle_cancel()
             elif action == "list_devices":
                 self.handle_list_devices()
+            elif action == "list_ollama_models":
+                self.handle_list_ollama_models()
             elif action == "ping":
                 send({"status": "pong"})
             elif action == "preload":

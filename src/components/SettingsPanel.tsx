@@ -16,9 +16,11 @@ interface Settings {
   whisperModel: string;
   language: string;
   llmPostprocess: boolean;
-  llmProvider: "none" | "claude" | "openai";
+  llmProvider: "none" | "claude" | "openai" | "ollama";
   claudeApiKey: string;
   openaiApiKey: string;
+  ollamaModel: string;
+  ollamaUrl: string;
   vadThreshold: number;
   silenceDuration: number;
   inputDevice: number | null;
@@ -33,6 +35,8 @@ const DEFAULT_SETTINGS: Settings = {
   llmProvider: "none",
   claudeApiKey: "",
   openaiApiKey: "",
+  ollamaModel: "qwen2.5:1.5b",
+  ollamaUrl: "http://localhost:11434",
   vadThreshold: 0.5,
   silenceDuration: 1.5,
   inputDevice: null,
@@ -60,6 +64,7 @@ function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
+  const [ollamaModels, setOllamaModels] = useState<{ name: string }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -85,6 +90,16 @@ function SettingsPanel() {
     return () => { unlisten.then((f) => f()); };
   }, []);
 
+  useEffect(() => {
+    const unlisten = listen<{ models?: { name: string }[] }>("ollama-models", (event) => {
+      if (event.payload.models) {
+        setOllamaModels(event.payload.models);
+      }
+    });
+    invoke("list_ollama_models").catch(() => {});
+    return () => { unlisten.then((f) => f()); };
+  }, []);
+
   const save = async (newSettings: Settings) => {
     setSettings(newSettings);
     try {
@@ -106,6 +121,8 @@ function SettingsPanel() {
           silence_duration: newSettings.silenceDuration,
           input_device: newSettings.inputDevice,
           custom_vocabulary: newSettings.customVocabulary,
+          ollama_model: newSettings.ollamaModel,
+          ollama_url: newSettings.ollamaUrl,
         },
       });
 
@@ -193,7 +210,7 @@ function SettingsPanel() {
               className="w-4 h-4 rounded"
             />
             <span className="text-sm text-white/70">
-              Clean up filler words, fix punctuation
+              LLMでフィラー除去・句読点修正・漢字補正を行う
             </span>
           </label>
         </Label>
@@ -203,13 +220,54 @@ function SettingsPanel() {
             <Label text="Provider">
               <select
                 value={settings.llmProvider}
-                onChange={(e) => update("llmProvider", e.target.value as "none" | "claude" | "openai")}
+                onChange={(e) => update("llmProvider", e.target.value as "none" | "claude" | "openai" | "ollama")}
                 className="input-field"
               >
-                <option value="claude">Claude</option>
-                <option value="openai">OpenAI GPT</option>
+                <option value="ollama">Ollama (Local)</option>
+                <option value="claude">Claude (Cloud)</option>
+                <option value="openai">OpenAI GPT (Cloud)</option>
               </select>
             </Label>
+
+            {settings.llmProvider === "ollama" && (
+              <>
+                <Label text="Ollama Model">
+                  <div className="flex gap-2">
+                    <select
+                      value={settings.ollamaModel}
+                      onChange={(e) => update("ollamaModel", e.target.value)}
+                      className="input-field flex-1"
+                    >
+                      {ollamaModels.length === 0 && (
+                        <option value={settings.ollamaModel}>{settings.ollamaModel}</option>
+                      )}
+                      {ollamaModels.map((m) => (
+                        <option key={m.name} value={m.name}>{m.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => invoke("list_ollama_models").catch(() => {})}
+                      className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-colors"
+                      title="Refresh model list"
+                    >
+                      ↻
+                    </button>
+                  </div>
+                </Label>
+                <Label text="Ollama URL">
+                  <input
+                    type="text"
+                    value={settings.ollamaUrl}
+                    onChange={(e) => update("ollamaUrl", e.target.value)}
+                    placeholder="http://localhost:11434"
+                    className="input-field"
+                  />
+                </Label>
+                <p className="text-xs text-white/40">
+                  推奨: qwen2.5:1.5b（軽量・高速）/ qwen2.5:7b（高精度）
+                </p>
+              </>
+            )}
           </>
         )}
       </Section>

@@ -109,6 +109,9 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             "devices" => {
                                 let _ = app_handle.emit("devices-list", &msg);
                             }
+                            "ollama_models" => {
+                                let _ = app_handle.emit("ollama-models", &msg);
+                            }
                             _ => {
                                 let _ = app_handle.emit("sidecar-message", &msg);
                             }
