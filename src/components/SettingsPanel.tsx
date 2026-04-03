@@ -287,7 +287,7 @@ function SettingsPanel() {
       )}
 
       {/* LLM Post-processing */}
-      <Section title="LLM Post-processing">
+      <Section title="LLM Post-processing (Beta)">
         <Label text="Enable">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -304,6 +304,41 @@ function SettingsPanel() {
 
         {settings.llmPostprocess && (
           <>
+            {ollamaModels.length === 0 && (
+              <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm space-y-2">
+                <p className="text-yellow-300/90 font-medium">Ollamaが検出されませんでした</p>
+                <p className="text-white/50 text-xs">
+                  ローカルLLMを利用するには Ollama のインストールが必要です。
+                </p>
+                <div className="flex gap-2 items-center">
+                  <a
+                    href="https://ollama.com/download"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-400 hover:underline"
+                  >
+                    ollama.com/download
+                  </a>
+                  <span className="text-white/30 text-xs">→ インストール後「↻」で再取得</span>
+                  <button
+                    onClick={() => invoke("list_ollama_models").catch(() => {})}
+                    className="ml-auto px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-xs transition-colors"
+                  >
+                    ↻
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {ollamaModels.length > 0 && ollamaModels.filter((m) => m.installed).length === 0 && (
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm space-y-1">
+                <p className="text-blue-300/90 font-medium">モデルが未インストールです</p>
+                <p className="text-white/50 text-xs">
+                  下の「Ollama Models」セクションからモデルをDLしてください。軽量な qwen2.5:1.5b (~1GB) がおすすめです。
+                </p>
+              </div>
+            )}
+
             <Label text="モデル">
               <div className="flex gap-2">
                 <select
@@ -322,14 +357,14 @@ function SettingsPanel() {
                   <optgroup label="Local (Ollama)">
                     {ollamaModels.filter((m) => m.installed).length === 0 && (
                       <option value={`ollama:${settings.ollamaModel}`}>
-                        {settings.ollamaModel} (Local)
+                        {settings.ollamaModel} (未インストール)
                       </option>
                     )}
                     {ollamaModels
                       .filter((m) => m.installed)
                       .map((m) => (
                         <option key={m.name} value={`ollama:${m.name}`}>
-                          {m.name} (Local)
+                          {m.name}
                         </option>
                       ))}
                   </optgroup>

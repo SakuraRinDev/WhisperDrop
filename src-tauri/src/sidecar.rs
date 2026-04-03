@@ -101,9 +101,12 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             "recording_started" => {
                                 let _ = app_handle.emit("recording-started", ());
                             }
-                            "transcribing" => {
-                                let _ = app_handle.emit("transcribing", ());
-                            }
+                                    "transcribing" => {
+                                        let _ = app_handle.emit("transcribing", ());
+                                    }
+                                    "postprocessing" => {
+                                        let _ = app_handle.emit("postprocessing", ());
+                                    }
                             "done" => {
                                 let _ = app_handle.emit("transcription-done", &msg);
                             }

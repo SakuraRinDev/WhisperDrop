@@ -100,8 +100,20 @@ pub async fn handle_hotkey_press(
             }
         }
         RecordingState::Transcribing => {
-            // Ignore hotkey while transcribing
+            // Allow cancel during transcription/postprocessing
             state.last_press = Some(now);
+            state.recording_state = RecordingState::Idle;
+            state.locked = false;
+
+            let _ = app.emit("recording-state", "idle");
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                let _ = overlay.hide();
+            }
+
+            let cmd = serde_json::json!({"action": "cancel"});
+            if let Err(e) = send_command(sidecar, &cmd).await {
+                eprintln!("Failed to cancel: {}", e);
+            }
         }
     }
 }

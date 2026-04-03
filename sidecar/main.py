@@ -118,19 +118,23 @@ class WhisperDropSidecar:
             send({"status": "done", "text": ""})
             return
 
-        try:
-            if self.transcriber is None:
-                self._init_transcriber()
+        def transcribe_and_postprocess():
+            try:
+                if self.transcriber is None:
+                    self._init_transcriber()
 
-            send({"status": "transcribing"})
-            text = self.transcriber.transcribe(audio)
+                send({"status": "transcribing"})
+                text = self.transcriber.transcribe(audio)
 
-            if self.config["llm_postprocess"] and text:
-                text = self._run_postprocess(text)
+                if self.config["llm_postprocess"] and text:
+                    text = self._run_postprocess(text)
 
-            send({"status": "done", "text": text})
-        except Exception as e:
-            send({"status": "error", "message": str(e)})
+                send({"status": "done", "text": text})
+            except Exception as e:
+                send({"status": "error", "message": str(e)})
+
+        t = threading.Thread(target=transcribe_and_postprocess, daemon=True)
+        t.start()
 
     def handle_set_config(self, config: dict):
         old_mode = self.config.get("mode")
@@ -160,13 +164,17 @@ class WhisperDropSidecar:
             if self.config["llm_provider"] == "claude"
             else self.config["openai_api_key"]
         )
-        return postprocess(
-            text,
-            provider=self.config["llm_provider"],
-            api_key=api_key,
-            ollama_model=self.config.get("ollama_model", "qwen2.5:1.5b"),
-            ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
-        )
+        try:
+            return postprocess(
+                text,
+                provider=self.config["llm_provider"],
+                api_key=api_key,
+                ollama_model=self.config.get("ollama_model", "qwen2.5:1.5b"),
+                ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
+            )
+        except Exception as e:
+            send({"status": "error", "message": f"PostProcess failed: {e}"})
+            return text
 
     def handle_list_ollama_models(self):
         url = self.config.get("ollama_url", "http://localhost:11434")

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 
-type RecordingState = "idle" | "listening" | "transcribing";
+type RecordingState = "idle" | "listening" | "transcribing" | "postprocessing";
 
 interface AudioLevelPayload {
   status: string;
@@ -21,10 +21,14 @@ function OverlayBar() {
     const unlisten2 = listen<AudioLevelPayload>("audio-level", (event) => {
       audioLevelRef.current = event.payload.level;
     });
+    const unlisten3 = listen("postprocessing", () => {
+      setState("postprocessing");
+    });
 
     return () => {
       unlisten1.then((f) => f());
       unlisten2.then((f) => f());
+      unlisten3.then((f) => f());
     };
   }, []);
 
@@ -45,6 +49,7 @@ function OverlayBar() {
       idle: ["rgba(120,120,140,0.4)", "rgba(100,100,120,0.3)"],
       listening: ["rgba(94,138,255,0.6)", "rgba(168,85,247,0.4)"],
       transcribing: ["rgba(255,138,94,0.6)", "rgba(236,72,153,0.4)"],
+      postprocessing: ["rgba(74,222,128,0.6)", "rgba(34,197,94,0.4)"],
     };
 
     function draw() {
@@ -110,6 +115,7 @@ function OverlayBar() {
     idle: "",
     listening: "Listening...",
     transcribing: "Transcribing...",
+    postprocessing: "Post-processing...",
   };
 
   return (
