@@ -1,4 +1,5 @@
 mod db;
+mod focus;
 mod hotkey;
 mod paste;
 mod sidecar;
@@ -187,6 +188,7 @@ pub fn run() {
                         return;
                     }
                     state.recording_state = RecordingState::Idle;
+                    let saved_hwnd = state.previous_window.take();
                     drop(state);
 
                     let payload = event.payload();
@@ -216,6 +218,11 @@ pub fn run() {
 
                     if should_paste {
                         std::thread::spawn(move || {
+                            // Restore focus to the window that was active before recording
+                            if let Some(hwnd) = saved_hwnd {
+                                focus::restore_foreground_window(hwnd);
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                            }
                             if let Err(e) = paste::paste_text(&paste_text_str) {
                                 eprintln!("Paste error: {}", e);
                             }

@@ -16,6 +16,7 @@ pub struct HotkeyState {
     pub recording_state: RecordingState,
     pub last_press: Option<Instant>,
     pub locked: bool,
+    pub previous_window: Option<isize>,
 }
 
 impl HotkeyState {
@@ -24,6 +25,7 @@ impl HotkeyState {
             recording_state: RecordingState::Idle,
             last_press: None,
             locked: false,
+            previous_window: None,
         }
     }
 }
@@ -56,6 +58,9 @@ pub async fn handle_hotkey_press(
             }
 
             state.recording_state = RecordingState::Recording;
+
+            // Save the currently focused window before stealing focus
+            state.previous_window = crate::focus::save_foreground_window();
 
             // Show overlay
             if let Some(overlay) = app.get_webview_window("overlay") {
@@ -104,10 +109,16 @@ pub async fn handle_hotkey_press(
             state.last_press = Some(now);
             state.recording_state = RecordingState::Idle;
             state.locked = false;
+            let saved_hwnd = state.previous_window.take();
+            drop(state);
 
             let _ = app.emit("recording-state", "idle");
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
+            }
+
+            if let Some(hwnd) = saved_hwnd {
+                crate::focus::restore_foreground_window(hwnd);
             }
 
             let cmd = serde_json::json!({"action": "cancel"});
@@ -126,10 +137,16 @@ pub async fn handle_cancel(
     let mut state = hotkey_state.lock().await;
     state.recording_state = RecordingState::Idle;
     state.locked = false;
+    let saved_hwnd = state.previous_window.take();
+    drop(state);
 
     let _ = app.emit("recording-state", "idle");
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.hide();
+    }
+
+    if let Some(hwnd) = saved_hwnd {
+        crate::focus::restore_foreground_window(hwnd);
     }
 
     let cmd = serde_json::json!({"action": "cancel"});
