@@ -8,7 +8,13 @@ src-tauri/target/
 # Python
 sidecar/.venv/
 sidecar/__pycache__/
+sidecar/build/
+sidecar/dist/
 *.pyc
+
+# Sidecar built binaries (large, reproduced by build:sidecar)
+src-tauri/binaries/whisper-sidecar-*.exe
+src-tauri/binaries/whisper-sidecar-*/
 
 # Whisper models (large files)
 *.bin

@@ -52,35 +52,47 @@ pub type SharedSidecar = Arc<Mutex<SidecarState>>;
 pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
     let shell = app.shell();
 
-    // Dev mode: run Python directly from sidecar/ directory
-    let exe_dir = std::env::current_exe()
-        .map_err(|e| format!("Failed to get exe path: {}", e))?;
-    // exe is at src-tauri/target/debug/whisperdrop.exe → go up to project root
-    let project_root = exe_dir
-        .parent() // target/debug/
-        .and_then(|p| p.parent()) // target/
-        .and_then(|p| p.parent()) // src-tauri/
-        .and_then(|p| p.parent()) // project root
-        .ok_or("Failed to resolve project root")?;
-    let sidecar_dir = project_root.join("sidecar");
-    let venv_python = sidecar_dir.join(".venv").join("Scripts").join("python.exe");
+    let (mut rx, child) = if cfg!(debug_assertions) {
+        // Dev mode: run Python directly from sidecar/ directory
+        let exe_dir = std::env::current_exe()
+            .map_err(|e| format!("Failed to get exe path: {}", e))?;
+        let project_root = exe_dir
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .ok_or("Failed to resolve project root")?;
+        let sidecar_dir = project_root.join("sidecar");
 
-    let python_path = if venv_python.exists() {
-        venv_python.to_string_lossy().to_string()
+        let venv_python = if cfg!(target_os = "windows") {
+            sidecar_dir.join(".venv").join("Scripts").join("python.exe")
+        } else {
+            sidecar_dir.join(".venv").join("bin").join("python")
+        };
+
+        let python_path = if venv_python.exists() {
+            venv_python.to_string_lossy().to_string()
+        } else {
+            "python".to_string()
+        };
+        let main_py = sidecar_dir.join("main.py").to_string_lossy().to_string();
+        eprintln!("Dev sidecar: {} {}", python_path, main_py);
+
+        shell
+            .command(&python_path)
+            .args(["-u", &main_py])
+            .env("PYTHONIOENCODING", "utf-8")
+            .spawn()
+            .map_err(|e| format!("Failed to spawn dev sidecar: {}", e))?
     } else {
-        "python".to_string()
+        // Production: use Tauri bundled sidecar
+        eprintln!("Production sidecar: whisper-sidecar");
+        shell
+            .sidecar("whisper-sidecar")
+            .map_err(|e| format!("Failed to create sidecar command: {}", e))?
+            .spawn()
+            .map_err(|e| format!("Failed to spawn sidecar: {}", e))?
     };
-
-    let main_py = sidecar_dir.join("main.py").to_string_lossy().to_string();
-
-    eprintln!("Dev sidecar: {} {}", python_path, main_py);
-
-    let (mut rx, child) = shell
-        .command(&python_path)
-        .args(["-u", &main_py])
-        .env("PYTHONIOENCODING", "utf-8")
-        .spawn()
-        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
     let state = Arc::new(Mutex::new(SidecarState { child: Some(child) }));
 
