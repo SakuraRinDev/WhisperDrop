@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+          - os: macos-latest
+            label: macOS
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.label }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create Python venv & install dependencies
+        shell: bash
+        run: |
+          python -m venv sidecar/.venv
+
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            VENV_PIP="sidecar/.venv/Scripts/pip"
+          else
+            VENV_PIP="sidecar/.venv/bin/pip"
+          fi
+
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            $VENV_PIP install torch --index-url https://download.pytorch.org/whl/cpu
+          else
+            $VENV_PIP install torch
+          fi
+
+          $VENV_PIP install -r sidecar/requirements.txt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build sidecar (PyInstaller)
+        run: npm run build:sidecar
+
+      - name: Build Tauri app & publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "WhisperDrop ${{ github.ref_name }}"
+          releaseBody: "See the assets to download and install this version."
+          releaseDraft: false
+          prerelease: false
