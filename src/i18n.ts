@@ -71,6 +71,19 @@ const dict = {
   // Advanced
   "section.advanced": { en: "Advanced", ja: "詳細設定" },
 
+  // History
+  "tab.history": { en: "History", ja: "履歴" },
+  "history.empty": { en: "No history yet", ja: "履歴がありません" },
+  "history.emptyDesc": {
+    en: "Transcriptions will appear here.",
+    ja: "音声入力した内容がここに表示されます。",
+  },
+  "history.count": { en: "{n} entries", ja: "{n} 件" },
+  "history.clearAll": { en: "Clear all", ja: "全削除" },
+  "history.copy": { en: "Copy", ja: "コピー" },
+  "history.delete": { en: "Delete", ja: "削除" },
+  "history.copied": { en: "Copied!", ja: "コピーしました" },
+
   // General
   "saved": { en: "Settings saved", ja: "設定を保存しました" },
   "afterInstall": { en: "After install, click ↻ to refresh", ja: "インストール後「↻」で再取得" },

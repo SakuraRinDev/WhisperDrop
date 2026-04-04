@@ -3,14 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { t } from "../i18n";
 import type { AudioDevice, OllamaModel, PullEvent, VocabEntry } from "../types";
 import { useSettings } from "../hooks/useSettings";
+import { useHistory } from "../hooks/useHistory";
 import { useTauriEvent } from "../hooks/useTauriEvent";
 import { SettingsTab } from "./settings/SettingsTab";
 import { ModelsTab } from "./settings/ModelsTab";
 import { DictionaryTab } from "./settings/DictionaryTab";
 import { AdvancedTab } from "./settings/AdvancedTab";
+import { HistoryTab } from "./settings/HistoryTab";
 import { VocabularyModal } from "./settings/VocabularyModal";
 
-type TabKey = "settings" | "models" | "dictionary" | "advanced";
+type TabKey = "settings" | "models" | "dictionary" | "advanced" | "history";
 
 function buildVocabularyPrompt(entries: VocabEntry[]): string {
   const parts = entries
@@ -21,6 +23,7 @@ function buildVocabularyPrompt(entries: VocabEntry[]): string {
 
 function SettingsPanel() {
   const { settings, save, update } = useSettings();
+  const history = useHistory();
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [pulling, setPulling] = useState<Record<string, { percent: number; status: string }>>({});
@@ -50,6 +53,17 @@ function SettingsPanel() {
     }
   });
 
+  // Save transcription to history
+  useTauriEvent<{ text?: string; language?: string; duration_ms?: number }>(
+    "transcription-done",
+    (event) => {
+      const { text, language, duration_ms } = event.payload;
+      if (text && text.trim()) {
+        history.addEntry(text, language ?? null, duration_ms ?? null);
+      }
+    }
+  );
+
   // Fetch devices and models on mount
   useTauriEvent("sidecar-ready", () => {
     invoke("list_audio_devices").catch(() => {});
@@ -62,6 +76,7 @@ function SettingsPanel() {
 
   const tabs: { key: TabKey; i18n: Parameters<typeof t>[0] }[] = [
     { key: "settings", i18n: "tab.settings" },
+    { key: "history", i18n: "tab.history" },
     { key: "models", i18n: "tab.models" },
     { key: "dictionary", i18n: "tab.dictionary" },
     { key: "advanced", i18n: "section.advanced" },
@@ -106,6 +121,18 @@ function SettingsPanel() {
       </nav>
 
       {tab === "settings" && <SettingsTab settings={settings} devices={devices} locale={L} update={update} />}
+      {tab === "history" && (
+        <HistoryTab
+          entries={history.entries}
+          loading={history.loading}
+          locale={L}
+          onCopy={(text) => {
+            navigator.clipboard?.writeText(text);
+          }}
+          onDelete={history.deleteEntry}
+          onClearAll={history.clearAll}
+        />
+      )}
       {tab === "models" && <ModelsTab ollamaModels={ollamaModels} pulling={pulling} locale={L} />}
       {tab === "dictionary" && <DictionaryTab settings={settings} locale={L} onEditVocab={() => setVocabOpen(true)} />}
       {tab === "advanced" && <AdvancedTab settings={settings} ollamaModels={ollamaModels} locale={L} update={update} save={save} />}
