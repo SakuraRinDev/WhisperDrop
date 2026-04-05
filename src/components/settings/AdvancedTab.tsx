@@ -133,9 +133,11 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
       <Section title="VAD / Silence">
         <Label text={`VAD Threshold: ${settings.vadThreshold}`}>
           <input type="range" min="0.1" max="0.9" step="0.1" value={settings.vadThreshold} onChange={(e) => update("vadThreshold", parseFloat(e.target.value))} className="w-full" />
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t("vad.desc", L)}</p>
         </Label>
         <Label text={`Silence Duration: ${settings.silenceDuration}s`}>
           <input type="range" min="0.5" max="3.0" step="0.25" value={settings.silenceDuration} onChange={(e) => update("silenceDuration", parseFloat(e.target.value))} className="w-full" />
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t("silence.desc", L)}</p>
         </Label>
       </Section>
     </div>

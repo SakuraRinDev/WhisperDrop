@@ -100,6 +100,16 @@ const dict = {
   "model.cancel": { en: "Cancel", ja: "キャンセル" },
   "model.downloading": { en: "Downloading model…", ja: "モデルをダウンロード中…" },
 
+  // VAD / Silence
+  "vad.desc": {
+    en: "Voice detection sensitivity. Lower = picks up quieter voices. Higher = ignores noise.",
+    ja: "音声検出の感度。低いほど小さい声も拾う。高いほどノイズを無視。",
+  },
+  "silence.desc": {
+    en: "Auto-stop after this duration of silence. Shorter = may cut off. Longer = more waiting.",
+    ja: "この秒数の無音で自動停止。短いと途切れやすく、長いと待ちが長い。",
+  },
+
   // General
   "saved": { en: "Settings saved", ja: "設定を保存しました" },
   "afterInstall": { en: "After install, click ↻ to refresh", ja: "インストール後「↻」で再取得" },
