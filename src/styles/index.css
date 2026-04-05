@@ -138,6 +138,28 @@ body,
   color: var(--text-primary);
   min-height: 100vh;
   transition: background-color 0.2s, color 0.2s;
+  position: relative;
+}
+
+.settings-container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("/bg-art.png") center / cover no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.4s;
+}
+
+[data-theme="dark"] .settings-container::before {
+  background-image: url("/bg-art-dark.png");
+  opacity: 0.10;
+}
+
+.settings-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 .settings-header {
