@@ -187,13 +187,13 @@ WhisperDrop/
 ## 7. トラブルシューティング
 
 ### `tauri dev` で「HotKey already registered」エラー
-別の WhisperDrop プロセスが残っている。タスクマネージャーで `whisperdrop.exe` を終了する。
+前回の WhisperDrop プロセスが正常終了せず、グローバルショートカットが登録されたまま残っている。タスクマネージャーで `whisperdrop.exe` を終了する。
 
 ### `build:sidecar` でサイズが 2GB 超
-GPU 版 torch が含まれている。3.1 の手順で CPU 版に切り替えてリビルドする。
+GPU 版 torch が含まれている。4.1 の手順で CPU 版に切り替えてリビルドする。
 
 ### `tauri build` で WiX / NSIS エラー
-サイドカー exe が 2GB 超だとインストーラー生成に失敗する。CPU 版 torch でリビルドする。
+サイドカー exe が 2GB 超だとインストーラー生成に失敗する。CPU 版 torch でリビルドする（4.1 参照）。
 
 ### ポート 1420 が使用中
-別の Vite プロセスが残っている。`netstat -ano | findstr :1420` で PID を確認し終了する。
+前回の `tauri dev` が正常終了しなかった場合、Vite 開発サーバー（localhost:1420）がポートを占有したまま残ることがある。`netstat -ano | findstr :1420` で PID を確認し、タスクマネージャーで終了する。
