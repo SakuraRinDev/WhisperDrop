@@ -87,13 +87,13 @@ export const MODEL_OPTIONS = [
   {
     value: "large-v3-turbo",
     label: "large-v3-turbo",
-    desc: "Multilingual — best speed/accuracy balance",
+    desc: "Recommended — multilingual, high accuracy",
     sizeMB: 1500,
   },
   {
     value: "kotoba-v2.0",
     label: "kotoba-v2.0",
-    desc: "Japanese-optimized — higher accuracy for Japanese",
+    desc: "Japanese-specialized (experimental)",
     sizeMB: 1500,
   },
 ];
