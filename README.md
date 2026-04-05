@@ -31,10 +31,11 @@
 
 [Releases ページ](https://github.com/SakuraRinDev/WhisperDrop/releases/latest) から OS に合ったインストーラーをダウンロード:
 
-| OS | ファイル |
-|---|---|
-| Windows | `WhisperDrop_x.x.x_x64-setup.exe` |
-| macOS (Apple Silicon) | `WhisperDrop_x.x.x_aarch64.dmg` |
+| OS | ファイル | 説明 |
+|---|---|---|
+| Windows | `.exe` | 推奨。ダウンロードして実行 |
+| Windows | `.msi` | 企業向けサイレントインストール対応 |
+| macOS | `.dmg` | 開いてアプリケーションフォルダにドラッグ |
 
 ## 使い方
 
@@ -48,6 +49,7 @@
 |---|---|
 | `Ctrl+Shift+Space` | 録音開始 / 停止 |
 | `Ctrl+Shift+Space` x2 (素早く) | ロックモード（長時間録音） |
+| `Escape` | 録音・文字起こしをキャンセル |
 
 ## 設定
 

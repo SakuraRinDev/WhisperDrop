@@ -78,6 +78,15 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "WhisperDrop ${{ github.ref_name }}"
-          releaseBody: "See the assets to download and install this version."
+          releaseBody: |
+            ## Download
+
+            | OS | File |
+            |---|---|
+            | **Windows** | `.exe` (推奨) or `.msi` |
+            | **macOS** | `.dmg` |
+
+            > Windows: `.exe` をダウンロードして実行してください。
+            > macOS: `.dmg` を開いてアプリケーションフォルダにドラッグしてください。
           releaseDraft: false
           prerelease: false
