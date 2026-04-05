@@ -5,7 +5,22 @@ import urllib.request
 import urllib.error
 from typing import Literal
 
-SYSTEM_PROMPTS = {
+TONE_INSTRUCTIONS = {
+    "normal": {
+        "ja": "自然で読みやすい文体に整えてください。",
+        "en": "Use a natural, readable tone.",
+    },
+    "casual": {
+        "ja": "口語的でカジュアルな文体にしてください。「〜だよね」「〜じゃない？」のような話し言葉を残してOK。堅い表現は避けてください。",
+        "en": "Keep it casual and conversational. Contractions and informal phrasing are fine.",
+    },
+    "official": {
+        "ja": "丁寧で公式な文体にしてください。「です・ます」調に統一し、ビジネス文書として適切な表現にしてください。",
+        "en": "Use a formal, professional tone. Proper grammar, no contractions, suitable for business communication.",
+    },
+}
+
+BASE_SYSTEM_PROMPTS = {
     "ja": """音声認識の出力テキストを修正するアシスタントです。
 話者の意図を保ちつつ、以下のルールで修正してください。
 
@@ -43,6 +58,15 @@ Rules:
 - Return ONLY the cleaned text, no explanations""",
 }
 
+def _build_system_prompt(language: str | None, tone: str = "normal") -> str:
+    key = language if language in BASE_SYSTEM_PROMPTS else "auto"
+    base = BASE_SYSTEM_PROMPTS[key]
+    lang_key = "ja" if key == "ja" else "en"
+    tone_instr = TONE_INSTRUCTIONS.get(tone, TONE_INSTRUCTIONS["normal"]).get(lang_key, "")
+    return f"{base}\n\n文体: {tone_instr}" if lang_key == "ja" else f"{base}\n\nTone: {tone_instr}"
+
+SYSTEM_PROMPTS = BASE_SYSTEM_PROMPTS
+
 USER_MSG_TEMPLATES = {
     "ja": "以下の音声認識テキストを修正してください:\n\n{text}",
     "en": "Clean up this transcribed text:\n\n{text}",
@@ -50,15 +74,16 @@ USER_MSG_TEMPLATES = {
 }
 
 
-def get_prompts(language: str | None) -> tuple[str, str]:
-    """Return (system_prompt, user_msg_template) for the given language."""
+def get_prompts(language: str | None, tone: str = "normal") -> tuple[str, str]:
+    """Return (system_prompt, user_msg_template) for the given language and tone."""
     key = language if language in SYSTEM_PROMPTS else "auto"
-    return SYSTEM_PROMPTS[key], USER_MSG_TEMPLATES[key]
+    sys_prompt = _build_system_prompt(language, tone)
+    return sys_prompt, USER_MSG_TEMPLATES[key]
 
 
-def _build_messages(text: str, language: str | None, instruction: str | None) -> tuple[str, str]:
+def _build_messages(text: str, language: str | None, instruction: str | None, tone: str = "normal") -> tuple[str, str]:
     """Build system prompt and user message for cloud APIs."""
-    sys_prompt, msg_tpl = get_prompts(language)
+    sys_prompt, msg_tpl = get_prompts(language, tone)
     user_msg = msg_tpl.format(text=text)
     if instruction:
         user_msg += f"\n\n{instruction}"
@@ -66,12 +91,12 @@ def _build_messages(text: str, language: str | None, instruction: str | None) ->
 
 
 def postprocess_with_claude(
-    text: str, api_key: str, instruction: str | None = None, language: str | None = None,
+    text: str, api_key: str, instruction: str | None = None, language: str | None = None, tone: str = "normal",
 ) -> str:
     """Post-process transcribed text using Claude API."""
     import anthropic
 
-    sys_prompt, user_msg = _build_messages(text, language, instruction)
+    sys_prompt, user_msg = _build_messages(text, language, instruction, tone)
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-sonnet-4-6-20250514",
@@ -83,12 +108,12 @@ def postprocess_with_claude(
 
 
 def postprocess_with_openai(
-    text: str, api_key: str, instruction: str | None = None, language: str | None = None,
+    text: str, api_key: str, instruction: str | None = None, language: str | None = None, tone: str = "normal",
 ) -> str:
     """Post-process transcribed text using OpenAI GPT API."""
     import openai
 
-    sys_prompt, user_msg = _build_messages(text, language, instruction)
+    sys_prompt, user_msg = _build_messages(text, language, instruction, tone)
     client = openai.OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -108,9 +133,10 @@ def postprocess_with_ollama(
     instruction: str | None = None,
     language: str | None = None,
     on_token=None,
+    tone: str = "normal",
 ) -> str:
     """Post-process transcribed text using local Ollama with streaming."""
-    sys_prompt, user_msg = _build_messages(text, language, instruction)
+    sys_prompt, user_msg = _build_messages(text, language, instruction, tone)
 
     payload = json.dumps({
         "model": model,
@@ -248,6 +274,7 @@ def postprocess(
     ollama_url: str = "http://localhost:11434",
     language: str | None = None,
     on_token=None,
+    tone: str = "normal",
 ) -> str:
     """Post-process text with the specified LLM provider."""
     if provider == "none":
@@ -255,13 +282,13 @@ def postprocess(
     if provider == "claude":
         if not api_key:
             return text
-        return postprocess_with_claude(text, api_key, instruction, language)
+        return postprocess_with_claude(text, api_key, instruction, language, tone)
     if provider == "openai":
         if not api_key:
             return text
-        return postprocess_with_openai(text, api_key, instruction, language)
+        return postprocess_with_openai(text, api_key, instruction, language, tone)
     if provider == "ollama":
         return postprocess_with_ollama(
-            text, ollama_model, ollama_url, instruction, language, on_token,
+            text, ollama_model, ollama_url, instruction, language, on_token, tone,
         )
     return text

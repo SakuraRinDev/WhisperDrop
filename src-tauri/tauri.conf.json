@@ -25,13 +25,14 @@
       {
         "label": "overlay",
         "title": "",
-        "width": 360,
-        "height": 116,
+        "width": 340,
+        "height": 80,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": false
+        "visible": false,
+        "backgroundColor": [0, 0, 0, 0]
       }
     ]
   },

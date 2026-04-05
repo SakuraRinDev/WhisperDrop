@@ -45,6 +45,9 @@ export interface HistoryEntry {
   duration_ms: number | null;
 }
 
+export type OverlayPosition = "top" | "bottom";
+export type LlmTone = "normal" | "casual" | "official";
+
 export interface Settings {
   transcriptionMode: "local" | "cloud";
   whisperModel: string;
@@ -55,6 +58,7 @@ export interface Settings {
   openaiApiKey: string;
   ollamaModel: string;
   ollamaUrl: string;
+  llmTone: LlmTone;
   vadThreshold: number;
   silenceDuration: number;
   inputDevice: number | null;
@@ -62,6 +66,7 @@ export interface Settings {
   vocabularyEntries: VocabEntry[];
   locale: Locale;
   theme: Theme;
+  overlayPosition: OverlayPosition;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -74,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: "",
   ollamaModel: "qwen2.5:1.5b",
   ollamaUrl: "http://localhost:11434",
+  llmTone: "normal",
   vadThreshold: 0.5,
   silenceDuration: 1.5,
   inputDevice: null,
@@ -81,6 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   vocabularyEntries: [],
   locale: "en",
   theme: "light",
+  overlayPosition: "top",
 };
 
 export const MODEL_OPTIONS = [

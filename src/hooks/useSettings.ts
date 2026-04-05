@@ -19,6 +19,7 @@ function settingsToSidecarConfig(s: Settings) {
     custom_vocabulary: s.customVocabulary,
     ollama_model: s.ollamaModel,
     ollama_url: s.ollamaUrl,
+    llm_tone: s.llmTone,
   };
 }
 
@@ -46,6 +47,10 @@ export function useSettings() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    invoke("set_overlay_position", { position: settings.overlayPosition }).catch(() => {});
+  }, [settings.overlayPosition]);
 
   const save = async (newSettings: Settings) => {
     setSettings(newSettings);

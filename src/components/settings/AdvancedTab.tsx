@@ -109,6 +109,28 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
               </div>
             </Label>
 
+            <Label text={t("label.llmTone", L)}>
+              <div className="flex gap-3">
+                {(["normal", "casual", "official"] as const).map((tone) => (
+                  <label key={tone} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="llmTone"
+                      checked={settings.llmTone === tone}
+                      onChange={() => update("llmTone", tone)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                      {t(`tone.${tone}`, L)}
+                      <span className="text-xs ml-1" style={{ color: "var(--text-faint)" }}>
+                        — {t(`tone.${tone}.desc`, L)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </Label>
+
             {settings.llmProvider === "ollama" && (
               <Label text="Ollama URL">
                 <input
@@ -131,6 +153,25 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
         <Label text="OpenAI API Key">
           <input type="password" value={settings.openaiApiKey} onChange={(e) => update("openaiApiKey", e.target.value)} placeholder="sk-..." className="input-field" />
         </Label>
+      </Section>
+
+      <Section title={t("label.overlayPosition", L)}>
+        <div className="flex gap-3">
+          {(["top", "bottom"] as const).map((pos) => (
+            <label key={pos} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="overlayPosition"
+                checked={settings.overlayPosition === pos}
+                onChange={() => update("overlayPosition", pos)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                {t(`overlay.${pos}`, L)}
+              </span>
+            </label>
+          ))}
+        </div>
       </Section>
 
       <Section title="VAD / Silence">

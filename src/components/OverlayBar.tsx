@@ -15,7 +15,7 @@ const WAVE_COLORS: Record<RecordingState, string[]> = {
 };
 
 const W = 340;
-const H = 100;
+const H = 80;
 
 function OverlayBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

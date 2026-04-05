@@ -147,6 +147,20 @@ const dict = {
   "model.cancel": { en: "Cancel", ja: "キャンセル" },
   "model.downloading": { en: "Downloading model…", ja: "モデルをダウンロード中…" },
 
+  // LLM Tone
+  "label.llmTone": { en: "Tone", ja: "文体" },
+  "tone.normal": { en: "Normal", ja: "通常" },
+  "tone.casual": { en: "Casual", ja: "カジュアル" },
+  "tone.official": { en: "Official", ja: "オフィシャル" },
+  "tone.normal.desc": { en: "Clean, natural text", ja: "綺麗な文章に" },
+  "tone.casual.desc": { en: "Conversational style", ja: "口語っぽいカジュアルさ" },
+  "tone.official.desc": { en: "Formal, polite text", ja: "綺麗かつ丁寧な文章へ" },
+
+  // Overlay
+  "label.overlayPosition": { en: "Overlay Position", ja: "オーバーレイ位置" },
+  "overlay.top": { en: "Top", ja: "上" },
+  "overlay.bottom": { en: "Bottom", ja: "下" },
+
   // VAD / Silence
   "vad.desc": {
     en: "Voice detection sensitivity. Lower = picks up quieter voices. Higher = ignores noise.",

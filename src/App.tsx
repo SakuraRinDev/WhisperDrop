@@ -8,7 +8,12 @@ function App() {
 
   useEffect(() => {
     const label = getCurrentWindow().label;
-    setIsOverlay(label === "overlay");
+    const overlay = label === "overlay";
+    setIsOverlay(overlay);
+    if (overlay) {
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
+    }
   }, []);
 
   if (isOverlay) {

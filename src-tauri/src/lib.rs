@@ -102,11 +102,11 @@ fn paste_text(text: String) -> Result<(), String> {
     paste::paste_text(&text)
 }
 
-const OVERLAY_WIDTH: f64 = 440.0;
-const OVERLAY_HEIGHT: f64 = 88.0;
-const OVERLAY_BOTTOM_MARGIN: f64 = 40.0;
+const OVERLAY_WIDTH: f64 = 340.0;
+const OVERLAY_HEIGHT: f64 = 80.0;
+const OVERLAY_MARGIN: f64 = 16.0;
 
-fn position_overlay(app: &tauri::AppHandle) {
+fn position_overlay(app: &tauri::AppHandle, position: &str) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if let Ok(Some(monitor)) = overlay.current_monitor() {
             let screen = monitor.size();
@@ -114,10 +114,19 @@ fn position_overlay(app: &tauri::AppHandle) {
             let win_width = (OVERLAY_WIDTH * scale) as u32;
             let win_height = (OVERLAY_HEIGHT * scale) as u32;
             let x = (screen.width / 2).saturating_sub(win_width / 2) as i32;
-            let y = (screen.height).saturating_sub(win_height + (OVERLAY_BOTTOM_MARGIN * scale) as u32) as i32;
+            let y = if position == "bottom" {
+                (screen.height).saturating_sub(win_height + (OVERLAY_MARGIN * scale) as u32) as i32
+            } else {
+                (OVERLAY_MARGIN * scale) as i32
+            };
             let _ = overlay.set_position(tauri::PhysicalPosition { x, y });
         }
     }
+}
+
+#[tauri::command]
+fn set_overlay_position(app: tauri::AppHandle, position: String) {
+    position_overlay(&app, &position);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -153,8 +162,8 @@ pub fn run() {
             let hotkey_state: SharedHotkeyState = Arc::new(Mutex::new(HotkeyState::new()));
             app.manage(hotkey_state.clone());
 
-            // Position overlay window
-            position_overlay(app.handle());
+            // Position overlay window (default: top)
+            position_overlay(app.handle(), "top");
 
             // Register global shortcuts
             let shortcut_record: Shortcut = "Ctrl+Shift+Space".parse().unwrap();
@@ -315,6 +324,7 @@ pub fn run() {
             list_audio_devices,
             get_history,
             paste_text,
+            set_overlay_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
