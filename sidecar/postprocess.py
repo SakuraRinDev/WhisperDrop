@@ -120,7 +120,7 @@ def postprocess_with_ollama(
         ],
         "stream": True,
         "keep_alive": "30m",
-        "options": {"temperature": 0.1, "num_predict": 256, "num_ctx": 512},
+        "options": {"temperature": 0.1, "num_predict": 1024, "num_ctx": 4096},
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -147,7 +147,12 @@ def postprocess_with_ollama(
             if chunk.get("done"):
                 break
 
-    return "".join(result_parts).strip()
+    result = "".join(result_parts).strip()
+    if not result:
+        import sys as _sys
+        print(f"[postprocess] Ollama returned empty. model={model}, input={text!r}", file=_sys.stderr)
+        return text
+    return result
 
 
 def warmup_ollama_model(model: str, base_url: str = "http://localhost:11434") -> bool:

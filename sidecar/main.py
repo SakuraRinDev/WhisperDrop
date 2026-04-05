@@ -118,8 +118,13 @@ class WhisperDropSidecar:
             t_postprocess = 0.0
             if self.config["llm_postprocess"] and text:
                 t1 = time.time()
+                raw_text = text
                 text = self._run_postprocess(text)
                 t_postprocess = time.time() - t1
+                if not text:
+                    import sys as _sys
+                    print(f"[postprocess] WARNING: empty result. input was: {raw_text!r}", file=_sys.stderr)
+                    text = raw_text
 
             send({
                 "status": "done", "text": text,

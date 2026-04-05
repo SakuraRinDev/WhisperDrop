@@ -10,9 +10,10 @@ import { ModelsTab } from "./settings/ModelsTab";
 import { DictionaryTab } from "./settings/DictionaryTab";
 import { AdvancedTab } from "./settings/AdvancedTab";
 import { HistoryTab } from "./settings/HistoryTab";
+import { UsageTab } from "./settings/UsageTab";
 import { VocabularyModal } from "./settings/VocabularyModal";
 
-type TabKey = "settings" | "models" | "dictionary" | "advanced" | "history";
+type TabKey = "settings" | "usage" | "models" | "dictionary" | "advanced" | "history";
 
 function buildVocabularyPrompt(entries: VocabEntry[]): string {
   const parts = entries
@@ -76,6 +77,7 @@ function SettingsPanel() {
 
   const tabs: { key: TabKey; i18n: Parameters<typeof t>[0] }[] = [
     { key: "settings", i18n: "tab.settings" },
+    { key: "usage", i18n: "tab.usage" },
     { key: "history", i18n: "tab.history" },
     { key: "models", i18n: "tab.models" },
     { key: "dictionary", i18n: "tab.dictionary" },
@@ -121,6 +123,7 @@ function SettingsPanel() {
       </nav>
 
       {tab === "settings" && <SettingsTab settings={settings} devices={devices} locale={L} update={update} />}
+      {tab === "usage" && <UsageTab locale={L} />}
       {tab === "history" && (
         <HistoryTab
           entries={history.entries}

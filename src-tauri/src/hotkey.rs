@@ -135,6 +135,9 @@ pub async fn handle_cancel(
     sidecar: &SharedSidecar,
 ) {
     let mut state = hotkey_state.lock().await;
+    if state.recording_state == RecordingState::Idle {
+        return;
+    }
     state.recording_state = RecordingState::Idle;
     state.locked = false;
     let saved_hwnd = state.previous_window.take();

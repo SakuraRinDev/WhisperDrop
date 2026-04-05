@@ -29,6 +29,9 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
               {t("llm.desc", L)}
             </span>
           </label>
+          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+            {t("llm.limit", L)}
+          </p>
           <button
             onClick={() => open("https://github.com/SakuraRinDev/WhisperDrop#llm-%E5%BE%8C%E5%87%A6%E7%90%86%E3%81%AE%E6%9C%89%E5%8A%B9%E5%8C%96%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6")}
             className="text-xs mt-1 hover:underline cursor-pointer"

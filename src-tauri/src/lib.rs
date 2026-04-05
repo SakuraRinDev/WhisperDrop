@@ -156,22 +156,37 @@ pub fn run() {
             // Position overlay window
             position_overlay(app.handle());
 
-            // Register global shortcut (Ctrl+Shift+Space)
-            let shortcut: Shortcut = "Ctrl+Shift+Space".parse().unwrap();
+            // Register global shortcuts
+            let shortcut_record: Shortcut = "Ctrl+Shift+Space".parse().unwrap();
+            let shortcut_escape: Shortcut = "Escape".parse().unwrap();
             let app_handle = app.handle().clone();
             let sidecar_for_shortcut = sidecar_state.clone();
             let hotkey_for_shortcut = hotkey_state.clone();
+            let app_handle_esc = app.handle().clone();
+            let sidecar_for_esc = sidecar_state.clone();
+            let hotkey_for_esc = hotkey_state.clone();
 
             app.handle()
                 .plugin(
                     tauri_plugin_global_shortcut::Builder::new()
-                        .with_handler(move |_app, _shortcut, event| {
-                            if event.state() == ShortcutState::Pressed {
+                        .with_handler(move |_app, shortcut, event| {
+                            if event.state() != ShortcutState::Pressed {
+                                return;
+                            }
+                            let key_str = shortcut.to_string();
+                            if key_str.contains("Space") {
                                 let app_h = app_handle.clone();
                                 let sc = sidecar_for_shortcut.clone();
                                 let hk = hotkey_for_shortcut.clone();
                                 tauri::async_runtime::spawn(async move {
                                     handle_hotkey_press(&app_h, &hk, &sc).await;
+                                });
+                            } else if key_str.contains("Escape") {
+                                let app_h = app_handle_esc.clone();
+                                let sc = sidecar_for_esc.clone();
+                                let hk = hotkey_for_esc.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    handle_cancel(&app_h, &hk, &sc).await;
                                 });
                             }
                         })
@@ -180,8 +195,11 @@ pub fn run() {
                 .expect("Failed to register global shortcut plugin");
 
             app.global_shortcut()
-                .register(shortcut)
+                .register(shortcut_record)
                 .expect("Failed to register Ctrl+Shift+Space shortcut");
+            app.global_shortcut()
+                .register(shortcut_escape)
+                .expect("Failed to register Escape shortcut");
 
             // Listen for transcription completion to auto-paste
             let app_handle2 = app.handle().clone();
@@ -209,7 +227,8 @@ pub fn run() {
                     {
                         if let Some(text) = &msg.text {
                             if !text.is_empty() {
-                                eprintln!("[paste] text={:?} (len={})", &text[..text.len().min(80)], text.len());
+                                let preview: String = text.chars().take(100).collect();
+                                eprintln!("[paste] text={:?} (len={})", preview, text.len());
                                 should_paste = true;
                                 paste_text_str = text.clone();
                             } else {
