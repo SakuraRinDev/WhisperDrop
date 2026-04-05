@@ -49,6 +49,7 @@ class WhisperDropSidecar:
         self.recorder = None
         self._recording_thread = None
         self._done_sent = threading.Event()
+        self._transcriber_lock = threading.Lock()
 
     def _on_audio_level(self, level: float):
         send({"status": "audio_level", "level": round(level, 3)})
@@ -60,16 +61,19 @@ class WhisperDropSidecar:
         return vocab
 
     def _init_transcriber(self):
-        api_key = self.config.get("openai_api_key")
-        self.transcriber = create_transcriber(
-            mode=self.config["mode"],
-            model_size=self.config["model"],
-            language=self.config["language"],
-            openai_api_key=api_key,
-            initial_prompt=self._build_initial_prompt(),
-        )
-        if isinstance(self.transcriber, LocalTranscriber):
-            self.transcriber.preload()
+        with self._transcriber_lock:
+            if self.transcriber is not None:
+                return
+            api_key = self.config.get("openai_api_key")
+            self.transcriber = create_transcriber(
+                mode=self.config["mode"],
+                model_size=self.config["model"],
+                language=self.config["language"],
+                openai_api_key=api_key,
+                initial_prompt=self._build_initial_prompt(),
+            )
+            if isinstance(self.transcriber, LocalTranscriber):
+                self.transcriber.preload()
 
     def _preload_transcriber_async(self):
         """Load the model in a background thread so the main loop stays responsive."""
@@ -173,7 +177,8 @@ class WhisperDropSidecar:
         need_reload = new_mode != old_mode or new_model != old_model or new_vocab != old_vocab
 
         if need_reload:
-            self.transcriber = None
+            with self._transcriber_lock:
+                self.transcriber = None
 
         if new_device != old_device:
             self.recorder = None
