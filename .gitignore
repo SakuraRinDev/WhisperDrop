@@ -23,6 +23,12 @@ src-tauri/binaries/whisper-sidecar-*
 .DS_Store
 Thumbs.db
 
+# Generated platform icons (not needed for Win/Mac desktop)
+src-tauri/icons/android/
+src-tauri/icons/ios/
+src-tauri/icons/Square*.png
+src-tauri/icons/StoreLogo.png
+
 # IDE
 .vscode/
 .idea/
