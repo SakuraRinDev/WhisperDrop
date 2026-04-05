@@ -32,19 +32,23 @@ def resolve_model_id(model_name: str) -> str:
 
 
 def is_model_cached(model_name: str) -> bool:
-    """Check if a model is already downloaded."""
+    """Check if a model is already downloaded in the HuggingFace cache."""
     model_id = resolve_model_id(model_name)
     models_dir = get_models_dir()
-    candidate = models_dir / model_id.replace("/", "--")
-    if candidate.is_dir() and any(candidate.iterdir()):
-        return True
-    candidate2 = models_dir / f"models--{model_id.replace('/', '--')}"
-    if candidate2.is_dir() and any(candidate2.iterdir()):
-        return True
-    if not "/" in model_id:
-        candidate3 = models_dir / f"faster-whisper-{model_id}"
-        if candidate3.is_dir() and any(candidate3.iterdir()):
-            return True
+    if not models_dir.exists():
+        return False
+
+    # Build search terms that may appear in cache directory names
+    search_terms = [model_id.replace("/", "--")]
+    if "/" not in model_id:
+        search_terms.append(f"faster-whisper-{model_id}")
+
+    for d in models_dir.iterdir():
+        if not d.is_dir():
+            continue
+        for term in search_terms:
+            if term in d.name and any(d.iterdir()):
+                return True
     return False
 
 
