@@ -89,6 +89,15 @@ async fn get_history(
 }
 
 #[tauri::command]
+async fn check_whisper_model(
+    sidecar: tauri::State<'_, SharedSidecar>,
+    model: String,
+) -> Result<(), String> {
+    let cmd = serde_json::json!({"action": "check_model", "model": model});
+    send_command(&sidecar, &cmd).await
+}
+
+#[tauri::command]
 fn paste_text(text: String) -> Result<(), String> {
     paste::paste_text(&text)
 }
@@ -281,6 +290,7 @@ pub fn run() {
             stop_recording,
             cancel_recording,
             send_sidecar_config,
+            check_whisper_model,
             list_ollama_models,
             pull_ollama_model,
             list_audio_devices,

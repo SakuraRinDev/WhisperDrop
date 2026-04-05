@@ -26,6 +26,8 @@ pub struct SidecarMessage {
     pub pull_status: Option<String>,
     #[serde(default)]
     pub debug: Option<serde_json::Value>,
+    #[serde(default)]
+    pub cached: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

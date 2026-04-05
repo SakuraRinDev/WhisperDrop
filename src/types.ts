@@ -84,12 +84,18 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const MODEL_OPTIONS = [
-  { value: "tiny", label: "tiny", desc: "Fastest, lower accuracy" },
-  { value: "base", label: "base", desc: "Good balance (recommended for CPU)" },
-  { value: "small", label: "small", desc: "Better accuracy" },
-  { value: "medium", label: "medium", desc: "High accuracy" },
-  { value: "large-v3-turbo", label: "large-v3-turbo", desc: "Best speed/accuracy (recommended for GPU)" },
-  { value: "large-v3", label: "large-v3", desc: "Highest accuracy" },
+  {
+    value: "large-v3-turbo",
+    label: "large-v3-turbo",
+    desc: "Multilingual — best speed/accuracy balance",
+    sizeMB: 1500,
+  },
+  {
+    value: "kotoba-v2.0",
+    label: "kotoba-v2.0",
+    desc: "Japanese-optimized — higher accuracy for Japanese",
+    sizeMB: 1500,
+  },
 ];
 
 export const LANGUAGE_OPTIONS = [

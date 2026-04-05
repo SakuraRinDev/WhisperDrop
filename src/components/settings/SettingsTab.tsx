@@ -1,4 +1,6 @@
+import { useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { t, type Locale } from "../../i18n";
 import type { Settings, AudioDevice } from "../../types";
 import { MODEL_OPTIONS, LANGUAGE_OPTIONS } from "../../types";
@@ -13,6 +15,54 @@ interface Props {
 }
 
 export function SettingsTab({ settings, devices, locale: L, update }: Props) {
+  const [pendingModel, setPendingModel] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const unlistenRef = useRef<(() => void) | null>(null);
+
+  const pendingOption = pendingModel
+    ? MODEL_OPTIONS.find((m) => m.value === pendingModel)
+    : null;
+
+  const handleModelChange = useCallback(
+    async (value: string) => {
+      if (value === settings.whisperModel) return;
+
+      const cleanup = await listen<{ status: string; model?: string; cached?: boolean }>(
+        "sidecar-message",
+        (event) => {
+          if (event.payload.status !== "model_status") return;
+          if (event.payload.model !== value) return;
+          unlistenRef.current?.();
+          unlistenRef.current = null;
+
+          if (event.payload.cached) {
+            update("whisperModel", value);
+          } else {
+            setPendingModel(value);
+          }
+        }
+      );
+      unlistenRef.current = cleanup;
+      invoke("check_whisper_model", { model: value }).catch(() => {
+        cleanup();
+        setPendingModel(value);
+      });
+    },
+    [settings.whisperModel, update]
+  );
+
+  const confirmDownload = () => {
+    if (!pendingModel) return;
+    setDownloading(true);
+    update("whisperModel", pendingModel);
+    setPendingModel(null);
+    setTimeout(() => setDownloading(false), 3000);
+  };
+
+  const cancelDownload = () => {
+    setPendingModel(null);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Section title={t("section.transcription", L)}>
@@ -31,7 +81,7 @@ export function SettingsTab({ settings, devices, locale: L, update }: Props) {
           <Label text={t("label.model", L)}>
             <select
               value={settings.whisperModel}
-              onChange={(e) => update("whisperModel", e.target.value)}
+              onChange={(e) => handleModelChange(e.target.value)}
               className="input-field"
             >
               {MODEL_OPTIONS.map((m) => (
@@ -40,6 +90,11 @@ export function SettingsTab({ settings, devices, locale: L, update }: Props) {
                 </option>
               ))}
             </select>
+            {downloading && (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                {t("model.downloading", L)}
+              </p>
+            )}
           </Label>
         )}
 
@@ -83,6 +138,42 @@ export function SettingsTab({ settings, devices, locale: L, update }: Props) {
           </div>
         </Label>
       </Section>
+
+      {pendingModel && pendingOption && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+        >
+          <div
+            className="rounded-xl shadow-xl p-6 max-w-sm w-full mx-4"
+            style={{ backgroundColor: "var(--bg-card)" }}
+          >
+            <h3 className="text-lg font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+              {t("model.downloadTitle", L)}
+            </h3>
+            <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
+              {t("model.downloadConfirm", L, {
+                name: pendingOption.label,
+                size: String(pendingOption.sizeMB),
+              })}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDownload}
+                className="btn-secondary px-4 py-2 text-sm"
+              >
+                {t("model.cancel", L)}
+              </button>
+              <button
+                onClick={confirmDownload}
+                className="btn-primary px-4 py-2 text-sm"
+              >
+                {t("model.download", L)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

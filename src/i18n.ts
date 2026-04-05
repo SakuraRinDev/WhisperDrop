@@ -84,6 +84,22 @@ const dict = {
   "history.delete": { en: "Delete", ja: "削除" },
   "history.copied": { en: "Copied!", ja: "コピーしました" },
 
+  // LLM help
+  "llm.helpLink": {
+    en: "How to enable",
+    ja: "機能の有効化について",
+  },
+
+  // Model download
+  "model.downloadTitle": { en: "Download Model", ja: "モデルのダウンロード" },
+  "model.downloadConfirm": {
+    en: "Download \"{name}\" (~{size}MB)? This may take a few minutes.",
+    ja: "「{name}」（約{size}MB）をダウンロードしますか？数分かかる場合があります。",
+  },
+  "model.download": { en: "Download", ja: "ダウンロード" },
+  "model.cancel": { en: "Cancel", ja: "キャンセル" },
+  "model.downloading": { en: "Downloading model…", ja: "モデルをダウンロード中…" },
+
   // General
   "saved": { en: "Settings saved", ja: "設定を保存しました" },
   "afterInstall": { en: "After install, click ↻ to refresh", ja: "インストール後「↻」で再取得" },

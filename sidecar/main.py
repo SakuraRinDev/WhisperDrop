@@ -18,7 +18,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_buffering=True)
 
 from audio import AudioRecorder, list_input_devices
-from transcribe import LocalTranscriber, CloudTranscriber, create_transcriber
+from transcribe import LocalTranscriber, CloudTranscriber, create_transcriber, is_model_cached
 from postprocess import postprocess, list_ollama_models, load_recommended_models, pull_ollama_model, warmup_ollama_model
 
 
@@ -71,6 +71,16 @@ class WhisperDropSidecar:
         if isinstance(self.transcriber, LocalTranscriber):
             self.transcriber.preload()
 
+    def _preload_transcriber_async(self):
+        """Load the model in a background thread so the main loop stays responsive."""
+        def _do_preload():
+            try:
+                self._init_transcriber()
+                send({"status": "model_loaded", "model": self.config.get("model")})
+            except Exception as e:
+                send({"status": "error", "message": f"Model preload failed: {e}"})
+        threading.Thread(target=_do_preload, daemon=True).start()
+
     def _init_recorder(self):
         self.recorder = AudioRecorder(
             vad_threshold=self.config["vad_threshold"],
@@ -121,8 +131,6 @@ class WhisperDropSidecar:
             send({"status": "error", "message": str(e)})
 
     def handle_start_recording(self):
-        if self.transcriber is None:
-            self._init_transcriber()
         if self.recorder is None:
             self._init_recorder()
 
@@ -162,13 +170,18 @@ class WhisperDropSidecar:
         new_vocab = self.config.get("custom_vocabulary")
         new_device = self.config.get("input_device")
 
-        if new_mode != old_mode or new_model != old_model or new_vocab != old_vocab:
+        need_reload = new_mode != old_mode or new_model != old_model or new_vocab != old_vocab
+
+        if need_reload:
             self.transcriber = None
 
         if new_device != old_device:
             self.recorder = None
 
         send({"status": "config_updated", "model": new_model})
+
+        if need_reload and new_mode == "local":
+            self._preload_transcriber_async()
 
         if self.config.get("llm_postprocess") and self.config.get("llm_provider") == "ollama":
             ollama_model = self.config.get("ollama_model", "gemma4:e2b")
@@ -311,6 +324,10 @@ class WhisperDropSidecar:
                     t.start()
                 else:
                     send({"status": "error", "message": "No model specified"})
+            elif action == "check_model":
+                model = cmd.get("model", "")
+                cached = is_model_cached(model) if model else False
+                send({"status": "model_status", "model": model, "cached": cached})
             elif action == "ping":
                 send({"status": "pong"})
             elif action == "preload":

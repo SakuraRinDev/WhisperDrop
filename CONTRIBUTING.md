@@ -1,4 +1,4 @@
-# WhisperDrop インストール & ビルド手順
+# WhisperDrop 開発ガイド
 
 ## 前提条件
 
@@ -7,9 +7,9 @@
 | **Node.js** | 18+ | フロントエンドビルド |
 | **Rust** | stable (rustup) | Tauri バックエンド |
 | **Python** | 3.10 - 3.12 | 音声処理サイドカー |
-| **Ollama** (任意) | latest | ローカル LLM 後処理 |
+| **Ollama** (任意) | latest | ローカル LLM 後処理（[インストール](https://ollama.com/download)） |
 
-Windows x64 のみ対応。
+Ollama を使う場合は、インストール後にターミナルで `ollama pull qwen2.5:1.5b` を実行してモデルを取得してください。Ollama はインストール後にバックグラウンドで自動起動します。
 
 ---
 
@@ -53,7 +53,33 @@ npm install -g @tauri-apps/cli
 
 ---
 
-## 2. 開発モードで起動
+## 2. Whisper モデルの準備
+
+初回起動時にモデルのダウンロードが必要です。UI の設定画面からモデルを選択するとダウンロードが始まりますが、事前に CLI で取得しておくこともできます。
+
+| モデル | HuggingFace ID | サイズ | 用途 |
+|--------|----------------|--------|------|
+| `large-v3-turbo` | (faster-whisper 組込) | ~1.5GB | 多言語対応（デフォルト） |
+| `kotoba-v2.0` | `kotoba-tech/kotoba-whisper-v2.0-faster` | ~1.5GB | 日本語特化（高精度・高速） |
+
+```powershell
+cd sidecar
+.\.venv\Scripts\activate
+
+# large-v3-turbo を事前ダウンロード
+python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3-turbo', download_root='../.whisperdrop_models_test')"
+
+# kotoba-v2.0 (日本語特化) を事前ダウンロード
+python -c "from faster_whisper import WhisperModel; WhisperModel('kotoba-tech/kotoba-whisper-v2.0-faster', download_root='../.whisperdrop_models_test')"
+
+cd ..
+```
+
+> モデルは `~/.whisperdrop/models/` にキャッシュされます。上のコマンドはテスト用パスです。アプリ起動時に自動で正しいパスにダウンロードされます。
+
+---
+
+## 3. 開発モードで起動
 
 ```bash
 npm run tauri dev
@@ -65,9 +91,9 @@ npm run tauri dev
 
 ---
 
-## 3. インストーラー生成（配布用）
+## 4. インストーラー生成（配布用）
 
-### 3.1 サイドカー exe ビルド
+### 4.1 サイドカー exe ビルド
 
 サイドカー（Python 音声処理部分）を PyInstaller で単一 exe に変換する。
 
@@ -92,7 +118,7 @@ npm run build:sidecar
 > cd ..
 > ```
 
-### 3.2 フルビルド（インストーラー生成）
+### 4.2 フルビルド（インストーラー生成）
 
 ```bash
 npm run tauri build
@@ -103,7 +129,7 @@ npm run tauri build
 src-tauri/target/release/bundle/nsis/WhisperDrop_0.1.0_x64-setup.exe  (~242MB)
 ```
 
-### 3.3 ワンコマンドビルド
+### 4.3 ワンコマンドビルド
 
 サイドカー + Tauri を一括実行:
 
@@ -111,11 +137,11 @@ src-tauri/target/release/bundle/nsis/WhisperDrop_0.1.0_x64-setup.exe  (~242MB)
 npm run build:all
 ```
 
-> 事前に CPU 版 torch をインストールしておくこと（3.1 参照）。
+> 事前に CPU 版 torch をインストールしておくこと（4.1 参照）。
 
 ---
 
-## 4. npm スクリプト一覧
+## 5. npm スクリプト一覧
 
 | コマンド | 説明 |
 |----------|------|
@@ -127,7 +153,7 @@ npm run build:all
 
 ---
 
-## 5. プロジェクト構成
+## 6. プロジェクト構成
 
 ```
 WhisperDrop/
@@ -158,7 +184,7 @@ WhisperDrop/
 
 ---
 
-## 6. トラブルシューティング
+## 7. トラブルシューティング
 
 ### `tauri dev` で「HotKey already registered」エラー
 別の WhisperDrop プロセスが残っている。タスクマネージャーで `whisperdrop.exe` を終了する。
