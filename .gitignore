@@ -39,7 +39,8 @@ settings.json
 # Logs
 *.log
 
-# Source GIF assets (large)
+# Source image/GIF assets (large)
+Image/
 Gif/
 
 # Agent/tool artifacts
