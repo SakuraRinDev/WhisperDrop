@@ -99,7 +99,9 @@ html:has(.overlay-root) #root,
   border-radius: 40px;
   background: rgba(10, 10, 20, 0.88);
   backdrop-filter: blur(20px);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  outline: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
