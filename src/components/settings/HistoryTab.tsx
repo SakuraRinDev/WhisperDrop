@@ -34,7 +34,7 @@ function formatDuration(ms: number | null): string {
 export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onClearAll }: Props) {
   if (loading) {
     return (
-      <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
+      <div className="flex-1 min-h-0 flex items-center justify-center py-12" style={{ color: "var(--text-muted)" }}>
         Loading...
       </div>
     );
@@ -42,7 +42,7 @@ export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onCl
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-12" style={{ color: "var(--text-muted)" }}>
         <p className="text-lg mb-1">{t("history.empty", L)}</p>
         <p className="text-sm">{t("history.emptyDesc", L)}</p>
       </div>
@@ -50,8 +50,8 @@ export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onCl
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
           {t("history.count", L, { n: entries.length })}
         </span>
@@ -63,7 +63,7 @@ export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onCl
           {t("history.clearAll", L)}
         </button>
       </div>
-      <div className="space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
         {entries.map((entry) => (
           <div
             key={entry.id}

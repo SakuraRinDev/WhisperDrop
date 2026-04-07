@@ -28,6 +28,10 @@ pub struct SidecarMessage {
     pub debug: Option<serde_json::Value>,
     #[serde(default)]
     pub cached: Option<bool>,
+    #[serde(default)]
+    pub connected: Option<bool>,
+    #[serde(default)]
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +148,9 @@ pub fn spawn_sidecar(app: &AppHandle) -> Result<SharedSidecar, String> {
                             }
                             "ollama_models" => {
                                 let _ = app_handle.emit("ollama-models", &msg);
+                            }
+                            "ollama_status" => {
+                                let _ = app_handle.emit("ollama-status", &msg);
                             }
                             "pull_start" | "pull_progress" | "pull_complete" | "pull_error" => {
                                 let _ = app_handle.emit("ollama-pull", &msg);

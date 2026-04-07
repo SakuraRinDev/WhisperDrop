@@ -16,8 +16,8 @@
         "title": "WhisperDrop",
         "width": 900,
         "height": 620,
-        "minWidth": 480,
-        "minHeight": 400,
+        "minWidth": 580,
+        "minHeight": 450,
         "visible": false,
         "decorations": true,
         "center": true

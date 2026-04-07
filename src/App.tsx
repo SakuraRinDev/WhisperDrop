@@ -25,24 +25,28 @@ function App() {
   }
 
   return (
-    <div className="settings-container">
-      <main className="p-8 max-w-4xl mx-auto">
-        {/* Banner */}
-        <div className="overflow-hidden" style={{ borderRadius: 6 }}>
-          <img
-            src="/header-banner.png"
-            alt=""
-            style={{ width: "100%", height: "auto", display: "block", marginTop: "-8%" }}
-          />
+    <div className="settings-container flex flex-col h-screen overflow-hidden">
+      <header className="shrink-0 px-8 pt-8 pb-0">
+        <div className="max-w-4xl mx-auto w-full">
+          <div className="overflow-hidden" style={{ borderRadius: 6 }}>
+            <img
+              src="/header-banner.png"
+              alt=""
+              style={{ width: "100%", height: "auto", display: "block", marginTop: "-8%" }}
+            />
+          </div>
+          <h1
+            className="font-display text-2xl font-light tracking-tight mt-4 mb-6"
+            style={{ color: "var(--text-primary)" }}
+          >
+            WhisperDrop
+          </h1>
         </div>
-
-        <h1
-          className="font-display text-2xl font-light tracking-tight mt-4 mb-6"
-          style={{ color: "var(--text-primary)" }}
-        >
-          WhisperDrop
-        </h1>
-        <SettingsPanel />
+      </header>
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden px-8 pb-8 scrollbar-gutter-stable">
+        <div className="max-w-4xl mx-auto w-full flex flex-col flex-1 min-h-0">
+          <SettingsPanel />
+        </div>
       </main>
     </div>
   );

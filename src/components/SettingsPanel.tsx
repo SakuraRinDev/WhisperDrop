@@ -27,6 +27,7 @@ function SettingsPanel() {
   const history = useHistory();
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
+  const [ollamaStatus, setOllamaStatus] = useState<{ connected: boolean; version: string | null }>({ connected: false, version: null });
   const [pulling, setPulling] = useState<Record<string, { percent: number; status: string }>>({});
   const [vocabOpen, setVocabOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("settings");
@@ -38,6 +39,9 @@ function SettingsPanel() {
   });
   useTauriEvent<{ models?: OllamaModel[] }>("ollama-models", (event) => {
     if (event.payload.models) setOllamaModels(event.payload.models);
+  });
+  useTauriEvent<{ connected?: boolean; version?: string | null }>("ollama-status", (event) => {
+    setOllamaStatus({ connected: event.payload.connected ?? false, version: event.payload.version ?? null });
   });
   useTauriEvent<PullEvent>("ollama-pull", (event) => {
     const { status, model, percent, pull_status, message } = event.payload;
@@ -69,10 +73,12 @@ function SettingsPanel() {
   useTauriEvent("sidecar-ready", () => {
     invoke("list_audio_devices").catch(() => {});
     invoke("list_ollama_models").catch(() => {});
+    invoke("check_ollama").catch(() => {});
   });
   useState(() => {
     invoke("list_audio_devices").catch(() => {});
     invoke("list_ollama_models").catch(() => {});
+    invoke("check_ollama").catch(() => {});
   });
 
   const tabs: { key: TabKey; i18n: Parameters<typeof t>[0] }[] = [
@@ -85,8 +91,8 @@ function SettingsPanel() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <nav className="flex items-center mb-6 border-b pb-px" style={{ borderColor: "var(--border-card)" }}>
+    <div className="flex flex-col flex-1 min-h-0 w-full">
+      <nav className="flex items-center mb-6 border-b pb-px shrink-0" style={{ borderColor: "var(--border-card)" }}>
         <div className="flex gap-6 flex-1">
           {tabs.map(({ key, i18n }) => (
             <button
@@ -113,18 +119,24 @@ function SettingsPanel() {
           </button>
           <button
             onClick={() => update("theme", settings.theme === "light" ? "dark" : "light")}
-            className="text-base leading-none transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            className="leading-none transition-colors"
+            style={{ color: "var(--text-faint)" }}
             title="Toggle theme"
           >
-            {settings.theme === "light" ? "🌙" : "☀️"}
+            {settings.theme === "light" ? (
+              <svg className="w-4 h-4" style={{ color: "#c4a86a" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" style={{ color: "#c4a86a" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+              </svg>
+            )}
           </button>
         </div>
       </nav>
 
-      {tab === "settings" && <SettingsTab settings={settings} devices={devices} locale={L} update={update} />}
-      {tab === "usage" && <UsageTab locale={L} />}
-      {tab === "history" && (
+      {tab === "history" ? (
         <HistoryTab
           entries={history.entries}
           loading={history.loading}
@@ -135,10 +147,15 @@ function SettingsPanel() {
           onDelete={history.deleteEntry}
           onClearAll={history.clearAll}
         />
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {tab === "settings" && <SettingsTab settings={settings} devices={devices} locale={L} update={update} />}
+          {tab === "usage" && <UsageTab locale={L} />}
+          {tab === "models" && <ModelsTab ollamaModels={ollamaModels} ollamaStatus={ollamaStatus} pulling={pulling} locale={L} />}
+          {tab === "dictionary" && <DictionaryTab settings={settings} locale={L} onEditVocab={() => setVocabOpen(true)} />}
+          {tab === "advanced" && <AdvancedTab settings={settings} ollamaModels={ollamaModels} locale={L} update={update} save={save} />}
+        </div>
       )}
-      {tab === "models" && <ModelsTab ollamaModels={ollamaModels} pulling={pulling} locale={L} />}
-      {tab === "dictionary" && <DictionaryTab settings={settings} locale={L} onEditVocab={() => setVocabOpen(true)} />}
-      {tab === "advanced" && <AdvancedTab settings={settings} ollamaModels={ollamaModels} locale={L} update={update} save={save} />}
 
       {vocabOpen && (
         <VocabularyModal

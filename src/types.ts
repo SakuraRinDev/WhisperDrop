@@ -17,6 +17,7 @@ export interface OllamaModel {
   size_label: string;
   installed: boolean;
   recommended: boolean;
+  warning?: string;
 }
 
 export interface PullEvent {
@@ -67,6 +68,7 @@ export interface Settings {
   locale: Locale;
   theme: Theme;
   overlayPosition: OverlayPosition;
+  autoStart: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -88,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   locale: "en",
   theme: "light",
   overlayPosition: "top",
+  autoStart: false,
 };
 
 export const MODEL_OPTIONS = [

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
+import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import type { Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
@@ -51,6 +52,16 @@ export function useSettings() {
   useEffect(() => {
     invoke("set_overlay_position", { position: settings.overlayPosition }).catch(() => {});
   }, [settings.overlayPosition]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const current = await isEnabled();
+        if (settings.autoStart && !current) await enable();
+        else if (!settings.autoStart && current) await disable();
+      } catch {}
+    })();
+  }, [settings.autoStart]);
 
   const save = async (newSettings: Settings) => {
     setSettings(newSettings);

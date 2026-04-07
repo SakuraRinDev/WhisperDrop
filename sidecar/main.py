@@ -11,6 +11,8 @@ import json
 import sys
 import threading
 import time
+import urllib.request
+import urllib.error
 
 # Force UTF-8 for stdin/stdout on Windows
 if sys.platform == "win32":
@@ -234,26 +236,45 @@ class WhisperDropSidecar:
             send({"status": "error", "message": f"PostProcess failed: {e}"})
             return text
 
+    @staticmethod
+    def _normalize_model_name(name: str) -> str:
+        """Strip ':latest' tag for consistent matching."""
+        return name.removesuffix(":latest")
+
+    def handle_check_ollama(self):
+        url = self.config.get("ollama_url", "http://localhost:11434")
+        try:
+            req = urllib.request.Request(f"{url}/api/version")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            send({"status": "ollama_status", "connected": True, "version": data.get("version", "unknown")})
+        except (urllib.error.URLError, OSError):
+            send({"status": "ollama_status", "connected": False, "version": None})
+
     def handle_list_ollama_models(self):
         url = self.config.get("ollama_url", "http://localhost:11434")
         installed = list_ollama_models(url)
         recommended = load_recommended_models()
-        installed_names = {m["name"] for m in installed}
+        installed_norm = {self._normalize_model_name(m["name"]) for m in installed}
 
         merged = []
         seen = set()
         for r in recommended:
             name = r["name"]
-            seen.add(name)
-            merged.append({
+            seen.add(self._normalize_model_name(name))
+            entry = {
                 "name": name,
                 "description": r.get("description", ""),
                 "size_label": r.get("size_label", ""),
-                "installed": name in installed_names,
+                "installed": self._normalize_model_name(name) in installed_norm,
                 "recommended": True,
-            })
+            }
+            if r.get("warning"):
+                entry["warning"] = r["warning"]
+            merged.append(entry)
         for m in installed:
-            if m["name"] not in seen:
+            norm = self._normalize_model_name(m["name"])
+            if norm not in seen:
                 merged.append({
                     "name": m["name"],
                     "description": "",
@@ -322,6 +343,8 @@ class WhisperDropSidecar:
                 self.handle_cancel()
             elif action == "list_devices":
                 self.handle_list_devices()
+            elif action == "check_ollama":
+                self.handle_check_ollama()
             elif action == "list_ollama_models":
                 self.handle_list_ollama_models()
             elif action == "pull_ollama_model":

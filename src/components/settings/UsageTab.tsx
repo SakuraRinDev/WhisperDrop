@@ -19,6 +19,7 @@ const flow = [
 ];
 
 const tips = [
+  "usage.tip.vad" as const,
   "usage.tip.escape" as const,
   "usage.tip.focus" as const,
 ];

@@ -21,3 +21,4 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 enigo = "0.3"
 arboard = "3"
+tauri-plugin-autostart = "2"

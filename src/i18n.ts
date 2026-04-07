@@ -48,6 +48,10 @@ const dict = {
     en: "Make sure your text cursor is in the target app before pressing the hotkey.",
     ja: "ホットキーを押す前に、入力先アプリにカーソルを置いてください。",
   },
+  "usage.tip.vad": {
+    en: "In normal mode, recording auto-stops after the configured silence duration (default 1.5s). Lock mode ignores silence and keeps recording.",
+    ja: "通常モードでは、設定した無音秒数（デフォルト1.5秒）で自動停止します。ロックモードでは無音を無視して録音を継続します。",
+  },
 
   // Transcription
   "section.transcription": { en: "Transcription", ja: "文字起こし" },
@@ -82,6 +86,13 @@ const dict = {
 
   // Ollama Models
   "section.ollamaModels": { en: "Ollama Models", ja: "Ollamaモデル" },
+  "ollama.connected": { en: "Connected", ja: "接続中" },
+  "ollama.notInstalled": {
+    en: "Ollama is not detected. Install Ollama to use local LLM models.",
+    ja: "Ollamaが検出されません。ローカルLLMモデルを使うにはOllamaのインストールが必要です。",
+  },
+  "ollama.install": { en: "Install Ollama", ja: "Ollamaをインストール" },
+  "ollama.checkConnection": { en: "Check connection", ja: "接続確認" },
   "ollama.desc": {
     en: "Manage & download models. Edit sidecar/ollama_models.json to add recommended models.",
     ja: "モデルの管理・ダウンロード。sidecar/ollama_models.json を編集して推奨モデルを追加できます。",
@@ -157,6 +168,11 @@ const dict = {
   "tone.official.desc": { en: "Formal, polite text", ja: "綺麗かつ丁寧な文章へ" },
 
   // Overlay
+  "label.autoStart": { en: "Launch at startup", ja: "OS起動時に自動起動" },
+  "autoStart.desc": {
+    en: "Automatically start WhisperDrop when you log in",
+    ja: "ログイン時にWhisperDropをバックグラウンドで起動",
+  },
   "label.overlayPosition": { en: "Overlay Position", ja: "オーバーレイ位置" },
   "overlay.top": { en: "Top", ja: "上" },
   "overlay.bottom": { en: "Bottom", ja: "下" },

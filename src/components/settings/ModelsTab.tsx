@@ -1,17 +1,65 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-shell";
 import { t, type Locale } from "../../i18n";
 import type { OllamaModel } from "../../types";
 import { Section } from "../ui/Section";
 
 interface Props {
   ollamaModels: OllamaModel[];
+  ollamaStatus: { connected: boolean; version: string | null };
   pulling: Record<string, { percent: number; status: string }>;
   locale: Locale;
 }
 
-export function ModelsTab({ ollamaModels, pulling, locale: L }: Props) {
+export function ModelsTab({ ollamaModels, ollamaStatus, pulling, locale: L }: Props) {
   return (
-    <div>
+    <div className="space-y-4">
+      <Section title="Ollama">
+        {ollamaStatus.connected ? (
+          <div className="flex items-center gap-3">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: "var(--accent-success)" }} />
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+              {t("ollama.connected", L)}
+            </span>
+            {ollamaStatus.version && (
+              <span className="text-xs px-2 py-0.5 rounded" style={{ color: "var(--text-faint)", background: "var(--bg-input)" }}>
+                v{ollamaStatus.version}
+              </span>
+            )}
+            <button
+              onClick={() => invoke("check_ollama").catch(() => {})}
+              className="ml-auto text-xs hover:underline"
+              style={{ color: "var(--text-link, #3b82f6)" }}
+            >
+              ↻
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: "var(--accent-danger)" }} />
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                {t("ollama.notInstalled", L)}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => open("https://ollama.com/download")}
+                className="btn-primary text-xs !px-3 !py-1.5"
+              >
+                {t("ollama.install", L)}
+              </button>
+              <button
+                onClick={() => { invoke("check_ollama").catch(() => {}); invoke("list_ollama_models").catch(() => {}); }}
+                className="btn-secondary text-xs !px-3 !py-1.5"
+              >
+                {t("ollama.checkConnection", L)}
+              </button>
+            </div>
+          </div>
+        )}
+      </Section>
+
       <Section title={t("section.ollamaModels", L)}>
         <p className="text-xs -mt-2 mb-2" style={{ color: "var(--text-faint)" }}>
           {t("ollama.desc", L)}
@@ -47,6 +95,11 @@ export function ModelsTab({ ollamaModels, pulling, locale: L }: Props) {
                   {m.size_label && !m.installed && (
                     <p className="text-xs" style={{ color: "var(--text-faint)" }}>{m.size_label}</p>
                   )}
+                  {m.warning && (
+                    <p className="text-xs mt-0.5" style={{ color: "var(--accent-warn)" }}>
+                      {m.warning}
+                    </p>
+                  )}
                   {isPulling && pullInfo && (
                     <div className="mt-1.5">
                       <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border-card)" }}>
@@ -70,9 +123,14 @@ export function ModelsTab({ ollamaModels, pulling, locale: L }: Props) {
                       DL
                     </button>
                   )}
-                  {m.installed && (
-                    <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  {m.installed && !m.warning && (
+                    <svg className="w-5 h-5" style={{ color: "var(--accent-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {m.installed && m.warning && (
+                    <svg className="w-5 h-5" style={{ color: "var(--accent-warn)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                     </svg>
                   )}
                   {isPulling && (

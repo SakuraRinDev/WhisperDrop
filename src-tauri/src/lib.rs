@@ -10,6 +10,7 @@ use hotkey::{
 use sidecar::{send_command, spawn_sidecar, SharedSidecar};
 use std::sync::Arc;
 use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Listener, Manager,
 };
@@ -73,6 +74,14 @@ async fn pull_ollama_model(
 }
 
 #[tauri::command]
+async fn check_ollama(
+    sidecar: tauri::State<'_, SharedSidecar>,
+) -> Result<(), String> {
+    let cmd = serde_json::json!({"action": "check_ollama"});
+    send_command(&sidecar, &cmd).await
+}
+
+#[tauri::command]
 async fn list_audio_devices(
     sidecar: tauri::State<'_, SharedSidecar>,
 ) -> Result<(), String> {
@@ -132,6 +141,10 @@ fn set_overlay_position(app: tauri::AppHandle, position: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
@@ -291,19 +304,57 @@ pub fn run() {
                 });
             });
 
+            // Close → hide to tray instead of quitting
+            let app_handle_close = app.handle().clone();
+            if let Some(main_window) = app.get_webview_window("main") {
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Some(w) = app_handle_close.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
+                });
+            }
+
+            // Build tray menu (right-click)
+            let quit_item = MenuItemBuilder::with_id("quit", "終了").build(app)?;
+            let show_item = MenuItemBuilder::with_id("show", "表示").build(app)?;
+            let tray_menu = MenuBuilder::new(app)
+                .item(&show_item)
+                .separator()
+                .item(&quit_item)
+                .build()?;
+
             // Build tray icon
+            let app_handle_tray = app.handle().clone();
+            let app_handle_menu = app.handle().clone();
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("WhisperDrop")
-                .on_tray_icon_event(|tray, event| {
+                .menu(&tray_menu)
+                .on_menu_event(move |_app, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(window) = app_handle_menu.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            app_handle_menu.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(move |_tray, event| {
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
                         ..
                     } = event
                     {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
+                        if let Some(window) = app_handle_tray.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
@@ -319,6 +370,7 @@ pub fn run() {
             cancel_recording,
             send_sidecar_config,
             check_whisper_model,
+            check_ollama,
             list_ollama_models,
             pull_ollama_model,
             list_audio_devices,

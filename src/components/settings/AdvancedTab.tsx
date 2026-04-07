@@ -155,6 +155,20 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
         </Label>
       </Section>
 
+      <Section title={t("label.autoStart", L)}>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={settings.autoStart}
+            onChange={(e) => update("autoStart", e.target.checked)}
+            className="w-4 h-4 rounded"
+          />
+          <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+            {t("autoStart.desc", L)}
+          </span>
+        </label>
+      </Section>
+
       <Section title={t("label.overlayPosition", L)}>
         <div className="flex gap-3">
           {(["top", "bottom"] as const).map((pos) => (
