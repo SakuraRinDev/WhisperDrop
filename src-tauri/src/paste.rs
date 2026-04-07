@@ -19,10 +19,19 @@ pub fn paste_text(text: &str) -> Result<(), String> {
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Failed to create enigo: {}", e))?;
 
+    // Release any modifiers that might still be held from the global hotkey
     let _ = enigo.key(Key::Control, enigo::Direction::Release);
     let _ = enigo.key(Key::Shift, enigo::Direction::Release);
     let _ = enigo.key(Key::Space, enigo::Direction::Release);
+    #[cfg(target_os = "macos")]
+    let _ = enigo.key(Key::Meta, enigo::Direction::Release);
     thread::sleep(Duration::from_millis(30));
+
+    // macOS uses Cmd+V, every other platform uses Ctrl+V
+    #[cfg(target_os = "macos")]
+    let modifier = Key::Meta;
+    #[cfg(not(target_os = "macos"))]
+    let modifier = Key::Control;
 
     #[cfg(target_os = "windows")]
     {
@@ -33,16 +42,26 @@ pub fn paste_text(text: &str) -> Result<(), String> {
         eprintln!("[paste] foreground at Ctrl+V time: hwnd={:#x}", hwnd);
     }
 
+    // On macOS, sending `Key::Unicode('v')` routes the synthetic keystroke
+    // through the active Input Method (IMKInputSession_Legacy when a Japanese
+    // IME is selected), which then calls TSMSetKeyboardLayoutOverride and
+    // crashes the host process inside CFPasteboard XPC. Sending the raw
+    // virtual keycode (kVK_ANSI_V = 0x09) bypasses the IME's Unicode path.
+    #[cfg(target_os = "macos")]
+    let v_key = Key::Other(0x09);
+    #[cfg(not(target_os = "macos"))]
+    let v_key = Key::Unicode('v');
+
     enigo
-        .key(Key::Control, enigo::Direction::Press)
+        .key(modifier, enigo::Direction::Press)
         .map_err(|e| format!("Key press error: {}", e))?;
     enigo
-        .key(Key::Unicode('v'), enigo::Direction::Click)
+        .key(v_key, enigo::Direction::Click)
         .map_err(|e| format!("Key press error: {}", e))?;
     enigo
-        .key(Key::Control, enigo::Direction::Release)
+        .key(modifier, enigo::Direction::Release)
         .map_err(|e| format!("Key release error: {}", e))?;
-    eprintln!("[paste] Ctrl+V sent");
+    eprintln!("[paste] paste shortcut sent");
 
     if let Some(old) = old_text {
         thread::sleep(Duration::from_millis(200));
