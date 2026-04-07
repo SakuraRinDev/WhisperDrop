@@ -115,7 +115,7 @@ const OVERLAY_WIDTH: f64 = 340.0;
 const OVERLAY_HEIGHT: f64 = 80.0;
 const OVERLAY_MARGIN: f64 = 16.0;
 
-fn position_overlay(app: &tauri::AppHandle, position: &str) {
+pub fn position_overlay(app: &tauri::AppHandle, position: &str) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if let Ok(Some(monitor)) = overlay.current_monitor() {
             let screen = monitor.size();
@@ -177,6 +177,14 @@ pub fn run() {
 
             // Position overlay window (default: top)
             position_overlay(app.handle(), "top");
+
+            // Make the overlay follow the user across all macOS Spaces / desktops
+            // and float above fullscreen apps. Without this, the overlay only
+            // appears on the Space where the app was launched.
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                let _ = overlay.set_visible_on_all_workspaces(true);
+                let _ = overlay.set_always_on_top(true);
+            }
 
             // Register global shortcuts
             let shortcut_record: Shortcut = "Ctrl+Shift+Space".parse().unwrap();

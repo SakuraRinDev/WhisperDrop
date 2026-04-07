@@ -62,10 +62,23 @@ pub async fn handle_hotkey_press(
             // Save the currently focused window before stealing focus
             state.previous_window = crate::focus::save_foreground_window();
 
-            // Show overlay
+            // Show overlay. On macOS we re-apply the "join all spaces" flag
+            // every time because hide() can drop the collectionBehavior, and
+            // we deliberately do NOT call set_focus() — taking focus would
+            // steal it from the user's target app (breaking the subsequent
+            // paste) and on macOS would also pull the overlay back to the
+            // original Space instead of following the user.
             if let Some(overlay) = app.get_webview_window("overlay") {
+                // Re-position to the screen the user is currently looking at,
+                // then show, then re-apply collectionBehavior. The order
+                // matters on macOS: setCollectionBehavior is only honored
+                // when the NSWindow has a live backing store (i.e. after
+                // show()). Toggling false→true forces AppKit to re-evaluate.
+                crate::position_overlay(app, "top");
                 let _ = overlay.show();
-                let _ = overlay.set_focus();
+                let _ = overlay.set_visible_on_all_workspaces(false);
+                let _ = overlay.set_visible_on_all_workspaces(true);
+                let _ = overlay.set_always_on_top(true);
             }
             let _ = app.emit("recording-state", "listening");
 
