@@ -5,9 +5,18 @@
 | ツール | バージョン | 用途 |
 |--------|-----------|------|
 | **Node.js** | 18+ | フロントエンドビルド |
-| **Rust** | stable (rustup) | Tauri バックエンド |
-| **Python** | 3.10 - 3.12 | 音声処理サイドカー |
+| **Rust** | **1.85+** (stable, rustup 推奨) | Tauri バックエンド |
+| **Python** | 3.10 - 3.12 (3.13 不可) | 音声処理サイドカー |
 | **Ollama** (任意) | latest | ローカル LLM 後処理（[インストール](https://ollama.com/download)） |
+
+> **Rust について**: 依存クレート (`time` など) が `edition2024` を要求するため Rust 1.85 以上が必要です。Mac で `brew install rust` を使うと Homebrew formula のスナップショット版が入り自動更新されないため、`rustup` の使用を強く推奨します。
+> ```bash
+> # rustup インストール (Mac/Linux)
+> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+> ```
+> すでに `brew install rust` してしまっている場合は `brew upgrade rust` で最新化してください。
+
+> **Python について**: Python 3.13 では一部依存 (`ctranslate2` など) のホイールが揃わないことがあります。Mac は `brew install python@3.12` で 3.12 を入れて venv を作るのが安全です。
 
 Ollama を使う場合は、インストール後にターミナルで `ollama pull qwen2.5:1.5b` を実行してモデルを取得してください。Ollama はインストール後にバックグラウンドで自動起動します。
 
@@ -30,6 +39,8 @@ npm install
 
 ### 1.3 Python 仮想環境 (sidecar)
 
+#### Windows
+
 ```powershell
 cd sidecar
 python -m venv .venv
@@ -42,6 +53,22 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 pip install -r requirements.txt
+cd ..
+```
+
+#### macOS
+
+Apple Silicon の Mac には CUDA 版 PyTorch は存在しないので CPU/MPS 版を使用します。
+
+```bash
+cd sidecar
+/opt/homebrew/bin/python3.12 -m venv .venv
+source .venv/bin/activate
+
+pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+pip install pyinstaller   # サイドカーをビルドする場合
 cd ..
 ```
 
@@ -196,4 +223,17 @@ GPU 版 torch が含まれている。4.1 の手順で CPU 版に切り替えて
 サイドカー exe が 2GB 超だとインストーラー生成に失敗する。CPU 版 torch でリビルドする（4.1 参照）。
 
 ### ポート 1420 が使用中
-前回の `tauri dev` が正常終了しなかった場合、Vite 開発サーバー（localhost:1420）がポートを占有したまま残ることがある。`netstat -ano | findstr :1420` で PID を確認し、タスクマネージャーで終了する。
+前回の `tauri dev` が正常終了しなかった場合、Vite 開発サーバー（localhost:1420）がポートを占有したまま残ることがある。`netstat -ano | findstr :1420` で PID を確認し、タスクマネージャーで終了する。Mac の場合は `lsof -i :1420` → `kill <PID>`。
+
+### Mac で `cargo build` が `feature edition2024 is required` で失敗する
+Rust が古い (1.85 未満)。`brew upgrade rust`、または `rustup` をインストールして `rustup update stable` する。
+
+### Mac で「The window is set to be transparent but the macos-private-api is not enabled」警告
+`tauri.conf.json` の `app.macOSPrivateApi` と、`src-tauri/Cargo.toml` の `tauri` features に `macos-private-api` が必要。本リポジトリでは設定済み。
+
+### Mac で配布 DMG が「壊れています」と表示される
+未署名・未公証アプリに対する Gatekeeper のブロックです。実際にファイルが壊れているわけではありません。回避するにはアプリを `/Applications` にコピーした上で:
+```bash
+xattr -cr /Applications/WhisperDrop.app
+```
+を実行してから起動してください。根本的な解決には Apple Developer ID による codesign + notarize が必要です（CI 未対応）。

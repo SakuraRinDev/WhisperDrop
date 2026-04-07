@@ -92,10 +92,14 @@ class AudioRecorder:
         """Stop recording and return the audio buffer as a numpy array."""
         self._recording = False
         self._stop_event.set()
-        if self._stream is not None:
-            self._stream.stop()
-            self._stream.close()
-            self._stream = None
+        # Atomically claim ownership of the stream so concurrent stop()/cancel()
+        # calls (e.g. VAD-triggered auto-stop racing with a user hotkey stop)
+        # cannot double-close it.
+        stream = self._stream
+        self._stream = None
+        if stream is not None:
+            stream.stop()
+            stream.close()
 
         # Drain remaining items from queue
         while not self._queue.empty():
@@ -159,10 +163,11 @@ class AudioRecorder:
         """Cancel recording without returning audio."""
         self._stop_event.set()
         self._recording = False
-        if self._stream is not None:
-            self._stream.stop()
-            self._stream.close()
-            self._stream = None
+        stream = self._stream
+        self._stream = None
+        if stream is not None:
+            stream.stop()
+            stream.close()
         self._audio_buffer = []
 
     @staticmethod

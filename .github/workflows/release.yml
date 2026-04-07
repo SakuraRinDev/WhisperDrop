@@ -88,5 +88,10 @@ jobs:
 
             > Windows: `.exe` をダウンロードして実行してください。
             > macOS: `.dmg` を開いてアプリケーションフォルダにドラッグしてください。
+            >
+            > **macOS ユーザーへ**: 初回起動時に「壊れています」と表示される場合は、未公証アプリに対する Gatekeeper のブロックです。ターミナルで以下を実行してから開いてください:
+            > ```bash
+            > xattr -cr /Applications/WhisperDrop.app
+            > ```
           releaseDraft: false
           prerelease: false
