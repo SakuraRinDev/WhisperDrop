@@ -47,7 +47,7 @@ export interface HistoryEntry {
 }
 
 export type OverlayPosition = "top" | "bottom";
-export type LlmTone = "normal" | "casual" | "official";
+export type LlmTone = "normal" | "casual" | "official" | "expressive";
 
 export interface Settings {
   transcriptionMode: "local" | "cloud";

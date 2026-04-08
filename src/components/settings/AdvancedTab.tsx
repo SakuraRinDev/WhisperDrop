@@ -110,8 +110,8 @@ export function AdvancedTab({ settings, ollamaModels, locale: L, update, save }:
             </Label>
 
             <Label text={t("label.llmTone", L)}>
-              <div className="flex gap-3">
-                {(["normal", "casual", "official"] as const).map((tone) => (
+              <div className="flex gap-3 flex-wrap">
+                {(["normal", "casual", "official", "expressive"] as const).map((tone) => (
                   <label key={tone} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"

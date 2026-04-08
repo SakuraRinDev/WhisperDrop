@@ -18,6 +18,10 @@ TONE_INSTRUCTIONS = {
         "ja": "丁寧で公式な文体にしてください。「です・ます」調に統一し、ビジネス文書として適切な表現にしてください。",
         "en": "Use a formal, professional tone. Proper grammar, no contractions, suitable for business communication.",
     },
+    "expressive": {
+        "ja": "感情豊かで生き生きとした文体にしてください。話者の熱量や感情のニュアンスが伝わるように、感嘆符（！）や疑問符（？）、語尾の抑揚（〜よ、〜ね、〜！）を適切に使ってください。ただし誇張しすぎず、話者が実際に表現したであろう範囲に留めてください。",
+        "en": "Use an expressive, lively tone that conveys the speaker's energy and emotion. Use exclamation marks (!), question marks (?), and emphatic phrasing where the speaker's enthusiasm is clear, but stay within what the speaker actually conveyed — do not exaggerate.",
+    },
 }
 
 BASE_SYSTEM_PROMPTS = {

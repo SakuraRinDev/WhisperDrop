@@ -163,9 +163,11 @@ const dict = {
   "tone.normal": { en: "Normal", ja: "通常" },
   "tone.casual": { en: "Casual", ja: "カジュアル" },
   "tone.official": { en: "Official", ja: "オフィシャル" },
+  "tone.expressive": { en: "Expressive", ja: "感情豊か" },
   "tone.normal.desc": { en: "Clean, natural text", ja: "綺麗な文章に" },
   "tone.casual.desc": { en: "Conversational style", ja: "口語っぽいカジュアルさ" },
   "tone.official.desc": { en: "Formal, polite text", ja: "綺麗かつ丁寧な文章へ" },
+  "tone.expressive.desc": { en: "Lively, emotional tone", ja: "感情や熱量が伝わる文章へ" },
 
   // Overlay
   "label.autoStart": { en: "Launch at startup", ja: "OS起動時に自動起動" },
