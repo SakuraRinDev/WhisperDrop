@@ -19,8 +19,10 @@ jobs:
         include:
           - os: windows-latest
             label: Windows
-          - os: macos-latest
-            label: macOS
+          # macOS releases are temporarily paused while we stabilize the macOS build.
+          # Active work happens on the `platform/macos` branch — re-enable here when ready.
+          # - os: macos-latest
+          #   label: macOS
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.label }})
@@ -84,14 +86,9 @@ jobs:
             | OS | File |
             |---|---|
             | **Windows** | `.exe` (推奨) or `.msi` |
-            | **macOS** | `.dmg` |
 
             > Windows: `.exe` をダウンロードして実行してください。
-            > macOS: `.dmg` を開いてアプリケーションフォルダにドラッグしてください。
             >
-            > **macOS ユーザーへ**: 初回起動時に「壊れています」と表示される場合は、未公証アプリに対する Gatekeeper のブロックです。ターミナルで以下を実行してから開いてください:
-            > ```bash
-            > xattr -cr /Applications/WhisperDrop.app
-            > ```
+            > **macOS サポートは一時休止中です。** 安定化作業は `platform/macos` ブランチで継続中で、準備ができ次第リリースを再開します。
           releaseDraft: false
           prerelease: false
