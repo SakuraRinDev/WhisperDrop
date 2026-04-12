@@ -1,6 +1,6 @@
 {
   "productName": "WhisperDrop",
-  "version": "2.3.0",
+  "version": "2.5.0",
   "identifier": "com.whisperdrop.app",
   "build": {
     "beforeDevCommand": "npm run dev",
