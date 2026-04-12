@@ -53,6 +53,13 @@ const dict = {
     ja: "通常モードでは、設定した無音秒数（デフォルト1.5秒）で自動停止します。ロックモードでは無音を無視して録音を継続します。",
   },
 
+  // Wrap
+  "usage.wrap": { en: "Wrap with brackets", ja: "括弧で囲む" },
+  "usage.wrap.desc": {
+    en: "Tap a key during recording to wrap the result (tap again to cancel):",
+    ja: "録音中にキーをタップすると結果を括弧で囲みます（もう一度押すと解除）:",
+  },
+
   // Transcription
   "section.transcription": { en: "Transcription", ja: "文字起こし" },
   "label.mode": { en: "Mode", ja: "モード" },

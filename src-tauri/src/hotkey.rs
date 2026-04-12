@@ -12,11 +12,37 @@ pub enum RecordingState {
     Transcribing,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum WrapStyle {
+    None,
+    /// 「」
+    JaQuote,
+    /// []
+    Bracket,
+    /// ""
+    DoubleQuote,
+    /// ()
+    Paren,
+}
+
+impl WrapStyle {
+    pub fn wrap(&self, text: &str) -> String {
+        match self {
+            WrapStyle::None => text.to_string(),
+            WrapStyle::JaQuote => format!("「{}」", text),
+            WrapStyle::Bracket => format!("[{}]", text),
+            WrapStyle::DoubleQuote => format!("\"{}\"", text),
+            WrapStyle::Paren => format!("({})", text),
+        }
+    }
+}
+
 pub struct HotkeyState {
     pub recording_state: RecordingState,
     pub last_press: Option<Instant>,
     pub locked: bool,
     pub previous_window: Option<isize>,
+    pub wrap_style: WrapStyle,
 }
 
 impl HotkeyState {
@@ -26,6 +52,7 @@ impl HotkeyState {
             last_press: None,
             locked: false,
             previous_window: None,
+            wrap_style: WrapStyle::None,
         }
     }
 }
@@ -36,6 +63,7 @@ pub async fn handle_hotkey_press(
     app: &AppHandle,
     hotkey_state: &SharedHotkeyState,
     sidecar: &SharedSidecar,
+    wrap: WrapStyle,
 ) {
     let mut state = hotkey_state.lock().await;
     let now = Instant::now();
@@ -58,6 +86,7 @@ pub async fn handle_hotkey_press(
             }
 
             state.recording_state = RecordingState::Recording;
+            state.wrap_style = wrap;
 
             // Save the currently focused window before stealing focus
             state.previous_window = crate::focus::save_foreground_window();

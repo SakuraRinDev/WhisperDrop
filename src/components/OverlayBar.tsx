@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { RecordingState, AudioLevelPayload } from "../types";
 import { useTauriEvent } from "../hooks/useTauriEvent";
+
+type WrapStyle = "none" | "ja_quote" | "bracket" | "double_quote" | "paren";
+
+const WRAP_LABELS: Record<WrapStyle, string> = {
+  none: "",
+  ja_quote: "「」",
+  bracket: "[]",
+  double_quote: '""',
+  paren: "()",
+};
+
+const WRAP_KEY_MAP: Record<string, WrapStyle> = {
+  a: "ja_quote",
+  s: "bracket",
+  d: "double_quote",
+  f: "paren",
+};
 
 const OVERLAY_VIDEOS = ["/overlay-1.mp4", "/overlay-2.mp4", "/overlay-3.mp4"];
 function pickRandom() {
@@ -21,6 +39,7 @@ function OverlayBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<RecordingState>("listening");
   const [streamText, setStreamText] = useState("");
+  const [wrap, setWrap] = useState<WrapStyle>("none");
   const audioLevelRef = useRef(0);
   const animFrameRef = useRef(0);
   const [videoSrc, setVideoSrc] = useState(pickRandom);
@@ -31,7 +50,11 @@ function OverlayBar() {
       if (next === "listening" && prev !== "listening") setVideoSrc(pickRandom());
       return next;
     });
-    if (next === "listening" || next === "idle") setStreamText("");
+    if (next === "listening" || next === "idle") {
+      setStreamText("");
+      setWrap("none");
+      invoke("set_wrap_style", { style: "none" }).catch(() => {});
+    }
   });
   useTauriEvent<AudioLevelPayload>("audio-level", (event) => {
     audioLevelRef.current = event.payload.level;
@@ -40,6 +63,24 @@ function OverlayBar() {
   useTauriEvent<{ text?: string }>("postprocessing-token", (event) => {
     if (event.payload.text) setStreamText(event.payload.text);
   });
+
+  // Listen for A/S/D/F key taps during recording to set wrap style
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (state !== "listening") return;
+      const key = e.key.toLowerCase();
+      const mapped = WRAP_KEY_MAP[key];
+      if (mapped) {
+        e.preventDefault();
+        // Toggle: if same key pressed again, clear wrap
+        const next = wrap === mapped ? "none" : mapped;
+        setWrap(next);
+        invoke("set_wrap_style", { style: next }).catch(() => {});
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [state, wrap]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -118,7 +159,7 @@ function OverlayBar() {
       }}>
         {showStream ? streamText : (
           state === "idle" ? "" :
-          state === "listening" ? "Listening..." :
+          state === "listening" ? (wrap !== "none" ? `${WRAP_LABELS[wrap]} Listening...` : "Listening...") :
           state === "transcribing" ? "Transcribing..." :
           "Post-processing..."
         )}

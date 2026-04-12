@@ -5,10 +5,20 @@ interface Props {
   locale: Locale;
 }
 
+const IS_MAC = navigator.platform?.startsWith("Mac") ?? false;
+const MOD = IS_MAC ? "Cmd" : "Ctrl";
+
 const hotkeys = [
-  { key: "Ctrl + Shift + Space", i18n: "usage.hotkey.record" as const },
-  { key: "Ctrl + Shift + Space ×2", i18n: "usage.hotkey.lock" as const },
+  { key: `${MOD} + Shift + Space`, i18n: "usage.hotkey.record" as const },
+  { key: `${MOD} + Shift + Space ×2`, i18n: "usage.hotkey.lock" as const },
   { key: "Escape", i18n: "usage.hotkey.cancel" as const },
+];
+
+const wrapKeys = [
+  { key: "A", label: "「」" },
+  { key: "S", label: "[]" },
+  { key: "D", label: '""' },
+  { key: "F", label: "()" },
 ];
 
 const flow = [
@@ -43,6 +53,31 @@ export function UsageTab({ locale: L }: Props) {
               </kbd>
               <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 {t(i18n, L)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title={t("usage.wrap", L)}>
+        <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>
+          {t("usage.wrap.desc", L)}
+        </p>
+        <div className="space-y-3">
+          {wrapKeys.map(({ key, label }) => (
+            <div key={key} className="flex items-start gap-3">
+              <kbd
+                className="shrink-0 px-2 py-1 rounded text-xs font-mono"
+                style={{
+                  backgroundColor: "var(--bg-badge)",
+                  border: "1px solid var(--border-input)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {key}
+              </kbd>
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                → {label}
               </span>
             </div>
           ))}

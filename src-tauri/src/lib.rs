@@ -6,7 +6,7 @@ mod paste;
 mod sidecar;
 
 use hotkey::{
-    handle_cancel, handle_hotkey_press, HotkeyState, RecordingState, SharedHotkeyState,
+    handle_cancel, handle_hotkey_press, HotkeyState, RecordingState, SharedHotkeyState, WrapStyle,
 };
 use sidecar::{send_command, spawn_sidecar, SharedSidecar};
 use std::sync::Arc;
@@ -24,7 +24,7 @@ async fn start_recording(
     sidecar: tauri::State<'_, SharedSidecar>,
     hotkey_state: tauri::State<'_, SharedHotkeyState>,
 ) -> Result<(), String> {
-    handle_hotkey_press(&app, &hotkey_state, &sidecar).await;
+    handle_hotkey_press(&app, &hotkey_state, &sidecar, WrapStyle::None).await;
     Ok(())
 }
 
@@ -34,7 +34,23 @@ async fn stop_recording(
     sidecar: tauri::State<'_, SharedSidecar>,
     hotkey_state: tauri::State<'_, SharedHotkeyState>,
 ) -> Result<(), String> {
-    handle_hotkey_press(&app, &hotkey_state, &sidecar).await;
+    handle_hotkey_press(&app, &hotkey_state, &sidecar, WrapStyle::None).await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_wrap_style(
+    hotkey_state: tauri::State<'_, SharedHotkeyState>,
+    style: String,
+) -> Result<(), String> {
+    let mut state = hotkey_state.lock().await;
+    state.wrap_style = match style.as_str() {
+        "ja_quote" => WrapStyle::JaQuote,
+        "bracket" => WrapStyle::Bracket,
+        "double_quote" => WrapStyle::DoubleQuote,
+        "paren" => WrapStyle::Paren,
+        _ => WrapStyle::None,
+    };
     Ok(())
 }
 
@@ -197,8 +213,15 @@ pub fn run() {
             position_overlay(app.handle(), "top");
 
             // Register global shortcuts
-            let shortcut_record: Shortcut = "Ctrl+Shift+Space".parse().unwrap();
+            // macOS: Cmd-based, Windows/Linux: Ctrl-based
+            #[cfg(target_os = "macos")]
+            let mod_prefix = "Cmd+Shift";
+            #[cfg(not(target_os = "macos"))]
+            let mod_prefix = "Ctrl+Shift";
+
+            let shortcut_record: Shortcut = format!("{mod_prefix}+Space").parse().unwrap();
             let shortcut_escape: Shortcut = "Escape".parse().unwrap();
+
             let app_handle = app.handle().clone();
             let sidecar_for_shortcut = sidecar_state.clone();
             let hotkey_for_shortcut = hotkey_state.clone();
@@ -214,12 +237,13 @@ pub fn run() {
                                 return;
                             }
                             let key_str = shortcut.to_string();
+
                             if key_str.contains("Space") {
                                 let app_h = app_handle.clone();
                                 let sc = sidecar_for_shortcut.clone();
                                 let hk = hotkey_for_shortcut.clone();
                                 tauri::async_runtime::spawn(async move {
-                                    handle_hotkey_press(&app_h, &hk, &sc).await;
+                                    handle_hotkey_press(&app_h, &hk, &sc, WrapStyle::None).await;
                                 });
                             } else if key_str.contains("Escape") {
                                 let app_h = app_handle_esc.clone();
@@ -234,11 +258,10 @@ pub fn run() {
                 )
                 .expect("Failed to register global shortcut plugin");
 
-            app.global_shortcut()
-                .register(shortcut_record)
-                .expect("Failed to register Ctrl+Shift+Space shortcut");
-            app.global_shortcut()
-                .register(shortcut_escape)
+            let gs = app.global_shortcut();
+            gs.register(shortcut_record)
+                .expect("Failed to register record shortcut");
+            gs.register(shortcut_escape)
                 .expect("Failed to register Escape shortcut");
 
             // Listen for transcription completion to auto-paste
@@ -256,6 +279,7 @@ pub fn run() {
                     }
                     state.recording_state = RecordingState::Idle;
                     let saved_hwnd = state.previous_window.take();
+                    let wrap = state.wrap_style.clone();
                     drop(state);
 
                     let payload = event.payload();
@@ -267,10 +291,11 @@ pub fn run() {
                     {
                         if let Some(text) = &msg.text {
                             if !text.is_empty() {
-                                let preview: String = text.chars().take(100).collect();
-                                eprintln!("[paste] text={:?} (len={})", preview, text.len());
+                                let wrapped = wrap.wrap(text);
+                                let preview: String = wrapped.chars().take(100).collect();
+                                eprintln!("[paste] text={:?} (len={})", preview, wrapped.len());
                                 should_paste = true;
-                                paste_text_str = text.clone();
+                                paste_text_str = wrapped;
                             } else {
                                 eprintln!("[paste] empty text, skipping paste");
                             }
@@ -386,6 +411,7 @@ pub fn run() {
             start_recording,
             stop_recording,
             cancel_recording,
+            set_wrap_style,
             send_sidecar_config,
             check_whisper_model,
             check_ollama,
