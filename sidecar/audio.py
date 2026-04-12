@@ -30,14 +30,28 @@ def list_input_devices() -> list[dict]:
     return result
 
 
-def load_vad_model():
-    """Load Silero VAD model."""
-    import torch
+_VAD_MODEL = None
+_VAD_LOAD_LOCK = threading.Lock()
 
-    model, utils = torch.hub.load(
-        "snakers4/silero-vad", "silero_vad", trust_repo=True
-    )
-    return model
+
+def load_vad_model():
+    """Load Silero VAD model. Cached at module level so the startup preload
+    thread and the AudioRecorder share the same instance — this avoids racing
+    a torch.hub download/JIT-compile against the sounddevice native callback,
+    which has crashed the sidecar in the past."""
+    global _VAD_MODEL
+    if _VAD_MODEL is not None:
+        return _VAD_MODEL
+    with _VAD_LOAD_LOCK:
+        if _VAD_MODEL is not None:
+            return _VAD_MODEL
+        import torch
+
+        model, _utils = torch.hub.load(
+            "snakers4/silero-vad", "silero_vad", trust_repo=True
+        )
+        _VAD_MODEL = model
+        return _VAD_MODEL
 
 
 class AudioRecorder:
@@ -61,6 +75,9 @@ class AudioRecorder:
         self._stop_event = threading.Event()
 
     def _ensure_vad(self):
+        # load_vad_model() returns a module-level cached instance, so this is
+        # cheap (and safe to call from any thread) once the startup preload
+        # thread has completed.
         if self._vad_model is None:
             self._vad_model = load_vad_model()
 

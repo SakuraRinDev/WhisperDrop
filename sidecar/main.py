@@ -318,9 +318,23 @@ class WhisperDropSidecar:
             self.recorder.cancel()
         send({"status": "cancelled"})
 
+    def _preload_vad_async(self):
+        """Pre-load Silero VAD in a background thread at startup so the first
+        recording doesn't race a torch.hub download/JIT-compile against the
+        sounddevice native callback (which has crashed sidecar in the past)."""
+        def _do_preload():
+            try:
+                from audio import load_vad_model
+                load_vad_model()
+            except Exception as e:
+                import sys as _sys
+                print(f"[vad] preload failed: {e}", file=_sys.stderr)
+        threading.Thread(target=_do_preload, daemon=True).start()
+
     def run_sidecar(self):
         """Main loop: read JSON commands from stdin."""
         send({"status": "ready"})
+        self._preload_vad_async()
 
         for line in sys.stdin:
             line = line.strip()

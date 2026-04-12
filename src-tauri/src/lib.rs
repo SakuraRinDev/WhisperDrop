@@ -1,6 +1,7 @@
 mod db;
 mod focus;
 mod hotkey;
+mod ollama;
 mod paste;
 mod sidecar;
 
@@ -161,6 +162,23 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            // Auto-start Ollama in the background if it's not already running.
+            // This runs on a separate thread so we don't delay app startup if
+            // Ollama takes a moment to bind its port.
+            let ollama_state: ollama::SharedOllama =
+                Arc::new(std::sync::Mutex::new(ollama::OllamaState::new()));
+            {
+                let ollama_state = ollama_state.clone();
+                std::thread::spawn(move || {
+                    if let Some(child) = ollama::ensure_ollama_running() {
+                        if let Ok(mut s) = ollama_state.lock() {
+                            s.child = Some(child);
+                        }
+                    }
+                });
+            }
+            app.manage(ollama_state);
+
             // Spawn Python sidecar
             let sidecar_state = match spawn_sidecar(&app.handle()) {
                 Ok(s) => s,
@@ -378,6 +396,16 @@ pub fn run() {
             paste_text,
             set_overlay_position,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Tear down ollama if WhisperDrop spawned it.
+                if let Some(state) = app_handle.try_state::<ollama::SharedOllama>() {
+                    if let Ok(mut s) = state.lock() {
+                        s.shutdown();
+                    }
+                }
+            }
+        });
 }
