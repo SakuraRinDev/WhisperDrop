@@ -14,6 +14,8 @@ sidecar_dir = os.path.dirname(os.path.abspath(SPEC))
 # Locate faster_whisper assets directory dynamically (works in venv and CI)
 _fw = importlib.import_module('faster_whisper')
 _fw_assets = os.path.join(os.path.dirname(_fw.__file__), 'assets')
+_sv = importlib.import_module('silero_vad')
+_sv_data = os.path.join(os.path.dirname(_sv.__file__), 'data')
 
 a = Analysis(
     [os.path.join(sidecar_dir, 'main.py')],
@@ -23,6 +25,8 @@ a = Analysis(
         (os.path.join(sidecar_dir, 'ollama_models.json'), '.'),
         # faster_whisper ships a Silero VAD ONNX model that it loads at runtime
         (_fw_assets, os.path.join('faster_whisper', 'assets')),
+        # silero_vad package ships JIT/ONNX model files used by load_silero_vad()
+        (_sv_data, os.path.join('silero_vad', 'data')),
     ],
     hiddenimports=[
         'torch',
@@ -38,6 +42,9 @@ a = Analysis(
         'numpy',
         'huggingface_hub',
         'tokenizers',
+        'silero_vad',
+        'torchaudio',
+        'packaging',
     ],
     hookspath=[],
     hooksconfig={},

@@ -35,22 +35,18 @@ _VAD_LOAD_LOCK = threading.Lock()
 
 
 def load_vad_model():
-    """Load Silero VAD model. Cached at module level so the startup preload
-    thread and the AudioRecorder share the same instance — this avoids racing
-    a torch.hub download/JIT-compile against the sounddevice native callback,
-    which has crashed the sidecar in the past."""
+    """Load Silero VAD model from the installed silero_vad package (no network
+    access required). Cached at module level so the startup preload thread and
+    the AudioRecorder share the same instance."""
     global _VAD_MODEL
     if _VAD_MODEL is not None:
         return _VAD_MODEL
     with _VAD_LOAD_LOCK:
         if _VAD_MODEL is not None:
             return _VAD_MODEL
-        import torch
+        from silero_vad import load_silero_vad
 
-        model, _utils = torch.hub.load(
-            "snakers4/silero-vad", "silero_vad", trust_repo=True
-        )
-        _VAD_MODEL = model
+        _VAD_MODEL = load_silero_vad()
         return _VAD_MODEL
 
 

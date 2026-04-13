@@ -338,12 +338,17 @@ pub fn run() {
                     }
                     state.recording_state = RecordingState::Idle;
                     state.locked = false;
+                    let saved_hwnd = state.previous_window.take();
                     drop(state);
 
                     if let Some(overlay) = app_h.get_webview_window("overlay") {
                         let _ = overlay.hide();
                     }
                     let _ = app_h.emit("recording-state", "idle");
+
+                    if let Some(hwnd) = saved_hwnd {
+                        focus::restore_foreground_window(hwnd);
+                    }
                 });
             });
 
