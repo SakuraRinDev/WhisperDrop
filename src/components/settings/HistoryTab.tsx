@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { t, type Locale } from "../../i18n";
 import type { HistoryEntry } from "../../types";
 
@@ -29,6 +30,36 @@ function formatDuration(ms: number | null): string {
   const sec = Math.round(ms / 1000);
   if (sec < 60) return `${sec}s`;
   return `${Math.floor(sec / 60)}m${sec % 60}s`;
+}
+
+function CopyButton({ text, locale, onCopy }: { text: string; locale: Locale; onCopy: (t: string) => void }) {
+  const [copied, setCopied] = useState(false);
+  const handleClick = () => {
+    onCopy(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      onClick={handleClick}
+      className={`p-1.5 rounded transition-all ${copied ? "" : "opacity-0 group-hover:opacity-100"}`}
+      style={{
+        color: copied ? "var(--accent-success)" : "var(--text-faint)",
+      }}
+      title={t("history.copy", locale)}
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
 }
 
 export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onClearAll }: Props) {
@@ -93,22 +124,17 @@ export function HistoryTab({ entries, loading, locale: L, onCopy, onDelete, onCl
                 )}
               </div>
             </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <button
-                onClick={() => onCopy(entry.text)}
-                className="text-xs px-2 py-1 rounded transition-colors"
-                style={{ color: "var(--text-muted)", background: "var(--bg-input)" }}
-                title={t("history.copy", L)}
-              >
-                {t("history.copy", L)}
-              </button>
+            <div className="flex gap-1 shrink-0 items-center">
+              <CopyButton text={entry.text} locale={L} onCopy={onCopy} />
               <button
                 onClick={() => onDelete(entry.id)}
-                className="text-xs px-2 py-1 rounded transition-colors"
-                style={{ color: "var(--text-muted)", background: "var(--bg-input)" }}
+                className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: "var(--text-faint)" }}
                 title={t("history.delete", L)}
               >
-                ×
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
           </div>

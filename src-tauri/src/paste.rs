@@ -14,7 +14,7 @@ pub fn paste_text(text: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to set clipboard: {}", e))?;
     eprintln!("[paste] clipboard set");
 
-    thread::sleep(Duration::from_millis(150));
+    thread::sleep(Duration::from_millis(50));
 
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Failed to create enigo: {}", e))?;
