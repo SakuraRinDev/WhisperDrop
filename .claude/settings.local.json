@@ -24,7 +24,13 @@
       "Bash(rustup default:*)",
       "Bash(\"F:/work/WhisperDrop/src-tauri/binaries/whisper-sidecar-x86_64-pc-windows-msvc.exe\")",
       "Bash(cargo build:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(brew install:*)",
+      "Bash(python3.12 --version)",
+      "Bash(/opt/homebrew/bin/python3.12 -m venv .venv)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(npm run:*)",
+      "Bash(brew list:*)"
     ]
   }
 }

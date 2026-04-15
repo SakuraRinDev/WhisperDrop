@@ -62,24 +62,12 @@ pub async fn handle_hotkey_press(
             // Save the currently focused window before stealing focus
             state.previous_window = crate::focus::save_foreground_window();
 
-            // Show overlay. On macOS we re-apply the "join all spaces" flag
-            // every time because hide() can drop the collectionBehavior, and
-            // we deliberately do NOT call set_focus() — taking focus would
-            // steal it from the user's target app (breaking the subsequent
-            // paste) and on macOS would also pull the overlay back to the
-            // original Space instead of following the user.
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                // Re-position to the screen the user is currently looking at,
-                // then show, then re-apply collectionBehavior. The order
-                // matters on macOS: setCollectionBehavior is only honored
-                // when the NSWindow has a live backing store (i.e. after
-                // show()). Toggling false→true forces AppKit to re-evaluate.
-                crate::position_overlay(app, "top");
-                let _ = overlay.show();
-                let _ = overlay.set_visible_on_all_workspaces(false);
-                let _ = overlay.set_visible_on_all_workspaces(true);
-                let _ = overlay.set_always_on_top(true);
-            }
+            // Re-position to the screen the user is currently looking at,
+            // then show. On macOS the overlay is an NSPanel (configured in
+            // setup) so we use order_front_regardless to surface it on the
+            // current Space without stealing focus.
+            crate::position_overlay(app, "top");
+            crate::show_overlay(app);
             let _ = app.emit("recording-state", "listening");
 
             // Tell sidecar to start recording (non-fatal if sidecar not running)
@@ -126,9 +114,7 @@ pub async fn handle_hotkey_press(
             drop(state);
 
             let _ = app.emit("recording-state", "idle");
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                let _ = overlay.hide();
-            }
+            crate::hide_overlay(app);
 
             if let Some(hwnd) = saved_hwnd {
                 crate::focus::restore_foreground_window(hwnd);
@@ -157,9 +143,7 @@ pub async fn handle_cancel(
     drop(state);
 
     let _ = app.emit("recording-state", "idle");
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.hide();
-    }
+    crate::hide_overlay(app);
 
     if let Some(hwnd) = saved_hwnd {
         crate::focus::restore_foreground_window(hwnd);

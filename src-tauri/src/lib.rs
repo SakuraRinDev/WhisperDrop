@@ -133,6 +133,39 @@ pub fn position_overlay(app: &tauri::AppHandle, position: &str) {
     }
 }
 
+/// Show the overlay window. On macOS the overlay is an NSPanel, so we use
+/// order_front_regardless to surface it on the user's *current* Space without
+/// stealing focus from the foreground app.
+pub fn show_overlay(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_nspanel::ManagerExt;
+        if let Ok(panel) = app.get_webview_panel("overlay") {
+            panel.order_front_regardless();
+            return;
+        }
+    }
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.show();
+    }
+}
+
+/// Hide the overlay window. On macOS we use order_out so the panel is
+/// dismissed without affecting the user's current Space or focus.
+pub fn hide_overlay(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_nspanel::ManagerExt;
+        if let Ok(panel) = app.get_webview_panel("overlay") {
+            panel.order_out(None);
+            return;
+        }
+    }
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.hide();
+    }
+}
+
 #[tauri::command]
 fn set_overlay_position(app: tauri::AppHandle, position: String) {
     position_overlay(&app, &position);
@@ -140,11 +173,14 @@ fn set_overlay_position(app: tauri::AppHandle, position: String) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
-        ))
+        ));
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+    builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
@@ -178,11 +214,29 @@ pub fn run() {
             // Position overlay window (default: top)
             position_overlay(app.handle(), "top");
 
-            // Make the overlay follow the user across all macOS Spaces / desktops
-            // and float above fullscreen apps. Without this, the overlay only
-            // appears on the Space where the app was launched.
+            // On macOS, convert the overlay window into a non-activating
+            // NSPanel and set its collectionBehavior to MoveToActiveSpace +
+            // Transient + FullScreenAuxiliary. This is what Raycast / Spotlight
+            // do so the overlay follows the user to whichever Space they're
+            // on without stealing focus or switching Spaces.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri_nspanel::cocoa::appkit::NSWindowCollectionBehavior;
+                use tauri_nspanel::WebviewWindowExt;
+                if let Some(overlay) = app.get_webview_window("overlay") {
+                    if let Ok(panel) = overlay.to_panel() {
+                        // NSMainMenuWindowLevel + 1 ≈ 25 — float above normal
+                        // windows but below the menu bar's modal alerts.
+                        panel.set_level(25);
+                        let behaviour = NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace
+                            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorTransient
+                            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary;
+                        panel.set_collection_behaviour(behaviour);
+                    }
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
             if let Some(overlay) = app.get_webview_window("overlay") {
-                let _ = overlay.set_visible_on_all_workspaces(true);
                 let _ = overlay.set_always_on_top(true);
             }
 
@@ -269,9 +323,7 @@ pub fn run() {
                         }
                     }
 
-                    if let Some(overlay) = app_h.get_webview_window("overlay") {
-                        let _ = overlay.hide();
-                    }
+                    hide_overlay(&app_h);
                     let _ = app_h.emit("recording-state", "idle");
 
                     if should_paste {
@@ -305,9 +357,7 @@ pub fn run() {
                     state.locked = false;
                     drop(state);
 
-                    if let Some(overlay) = app_h.get_webview_window("overlay") {
-                        let _ = overlay.hide();
-                    }
+                    hide_overlay(&app_h);
                     let _ = app_h.emit("recording-state", "idle");
                 });
             });
